@@ -1,0 +1,26 @@
+# FastAPI Framework (Updated versions with Python 3.13 support)
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Database
+sqlalchemy==2.0.36
+pymysql==1.1.1
+cryptography>=42.0.0
+
+# Authentication & Security
+# Using PyJWT instead of python-jose for better Windows compatibility
+PyJWT==2.10.1
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+
+# Configuration
+python-dotenv==1.0.1
+pydantic==2.10.5
+pydantic-settings==2.7.1
+email-validator==2.3.0
+
+# Development Tools (Optional)
+pytest==8.3.4
+httpx==0.28.1
+
