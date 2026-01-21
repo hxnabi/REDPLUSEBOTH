@@ -181,3 +181,12 @@ def get_cities_by_state(state: str, db: Session = Depends(get_db)):
     ).distinct().all()
     return {"cities": [city[0] for city in cities if city[0]]}
 
+@router.get("/districts/list")
+def get_districts(state: Optional[str] = None, db: Session = Depends(get_db)):
+    """Get list of all districts/cities."""
+    query = db.query(BloodBank.city).distinct()
+    if state:
+        query = query.filter(BloodBank.state == state)
+    districts = query.all()
+    return {"districts": [district[0] for district in districts if district[0]]}
+

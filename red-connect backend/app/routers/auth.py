@@ -124,7 +124,23 @@ def register_organizer(organizer_data: OrganizerCreate, db: Session = Depends(ge
 
 @router.post("/admin/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register_admin(admin_data: AdminCreate, db: Session = Depends(get_db)):
-    """Register a new admin."""
+    """
+    Register a new admin.
+    
+    SECURITY: This endpoint requires either:
+    1. A valid admin_secret matching ADMIN_SECRET_KEY (for initial admin setup)
+    2. Or should only be called by super-admins (future enhancement)
+    
+    In a production environment, this endpoint should be disabled after initial setup
+    or protected behind additional authentication.
+    """
+    # Security check: Require admin_secret for creating admins
+    if not admin_data.admin_secret or admin_data.admin_secret != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing admin secret key. Admin registration requires proper authorization."
+        )
+    
     # Check if email already exists in any account
     existing_user = db.query(User).filter(User.email == admin_data.email).first()
     if existing_user:

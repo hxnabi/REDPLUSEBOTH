@@ -32,13 +32,12 @@ const SmartActionButton = ({
         navigate("/organizer-dashboard");
       }
     } else {
-      // Not logged in - show dialog to choose role
+      // Not logged in - go to eligibility check first
       toast({
-        title: "Choose Your Role",
-        description: "Select whether you want to donate or organize events",
+        title: "Check Your Eligibility",
+        description: "Please complete the eligibility questionnaire first",
       });
-      // Navigate to a choice page or show a modal
-      navigate("/donor-login"); // Default to donor for now
+      navigate("/donor-eligibility");
     }
 
     onClick?.();

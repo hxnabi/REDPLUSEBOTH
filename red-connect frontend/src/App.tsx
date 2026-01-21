@@ -3,11 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Register from "./pages/Register";
 import Index from "./pages/Index";
 import BloodBanks from "./pages/BloodBanks";
+import About from "./pages/About";
 import DonorLogin from "./pages/DonorLogin";
 import DonorRegister from "./pages/DonorRegister";
+import DonorEligibilityCheck from "./pages/DonorEligibilityCheck";
 import OrganizerLogin from "./pages/OrganizerLogin";
 import OrganizerRegister from "./pages/OrganizerRegister";
 import AdminLogin from "./pages/AdminLogin";
@@ -30,12 +31,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Register />} />
+          <Route path="/" element={<Index />} />
           <Route path="/home" element={<Index />} />
           <Route path="/blood-banks" element={<BloodBanks />} />
+          <Route path="/about" element={<About />} />
           
           {/* Donor Routes */}
           <Route path="/donor-login" element={<DonorLogin />} />
+          <Route path="/donor-eligibility" element={<DonorEligibilityCheck />} />
           <Route path="/donor-register" element={<DonorRegister />} />
           <Route
             path="/donor-dashboard"

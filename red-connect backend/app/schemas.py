@@ -34,6 +34,7 @@ class AdminBase(BaseModel):
 class AdminCreate(AdminBase):
     email: EmailStr
     password: str
+    admin_secret: Optional[str] = None  # Required for creating admins without admin authentication
 
 class AdminResponse(AdminBase):
     id: int

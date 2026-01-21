@@ -40,6 +40,22 @@ interface Stats {
   active_organizers: number;
 }
 
+interface QuickStats {
+  active_users_percentage: number;
+  event_completion_percentage: number;
+  donor_retention_percentage: number;
+}
+
+interface RecentActivity {
+  id: number;
+  type: string;
+  title: string;
+  description: string;
+  time_ago: string;
+  timestamp: string;
+  badge: string;
+}
+
 interface Donor {
   id: number;
   full_name: string;
@@ -105,6 +121,12 @@ const AdminDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [bloodBanks, setBloodBanks] = useState<BloodBank[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [quickStats, setQuickStats] = useState<QuickStats>({
+    active_users_percentage: 0,
+    event_completion_percentage: 0,
+    donor_retention_percentage: 0,
+  });
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
   useEffect(() => {
     const email = localStorage.getItem("user_email");
@@ -117,6 +139,8 @@ const AdminDashboard = () => {
     
     setAdminEmail(email);
     fetchStats();
+    fetchQuickStats();
+    fetchRecentActivity();
   }, [navigate]);
 
   const fetchStats = async () => {
@@ -145,6 +169,44 @@ const AdminDashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchQuickStats = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      
+      const response = await fetch(`${API_URL}/api/admin/quick-stats`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQuickStats(data);
+      }
+    } catch (error) {
+      console.error("Error fetching quick stats:", error);
+    }
+  };
+
+  const fetchRecentActivity = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      
+      const response = await fetch(`${API_URL}/api/admin/recent-activity?limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRecentActivity(data);
+      }
+    } catch (error) {
+      console.error("Error fetching recent activity:", error);
     }
   };
 
@@ -565,27 +627,22 @@ const AdminDashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-sm">New Donor Registered</p>
-                            <p className="text-xs text-gray-500">2 hours ago</p>
-                          </div>
-                          <Badge variant="secondary">New</Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-sm">Event Created</p>
-                            <p className="text-xs text-gray-500">5 hours ago</p>
-                          </div>
-                          <Badge variant="secondary">Event</Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-sm">Donation Completed</p>
-                            <p className="text-xs text-gray-500">1 day ago</p>
-                          </div>
-                          <Badge className="bg-green-600">Success</Badge>
-                        </div>
+                        {recentActivity.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
+                        ) : (
+                          recentActivity.map((activity) => (
+                            <div key={`${activity.type}-${activity.id}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{activity.title}</p>
+                                <p className="text-xs text-gray-600">{activity.description}</p>
+                                <p className="text-xs text-gray-500 mt-1">{activity.time_ago}</p>
+                              </div>
+                              <Badge variant={activity.badge === "New" ? "default" : "secondary"}>
+                                {activity.badge}
+                              </Badge>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -602,28 +659,28 @@ const AdminDashboard = () => {
                         <div>
                           <div className="flex justify-between text-sm mb-1">
                             <span className="text-gray-600">Active Users</span>
-                            <span className="font-semibold">85%</span>
+                            <span className="font-semibold">{quickStats.active_users_percentage}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-blue-600 h-2 rounded-full" style={{ width: "85%" }}></div>
+                            <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${quickStats.active_users_percentage}%` }}></div>
                           </div>
                         </div>
                         <div>
                           <div className="flex justify-between text-sm mb-1">
                             <span className="text-gray-600">Event Completion</span>
-                            <span className="font-semibold">92%</span>
+                            <span className="font-semibold">{quickStats.event_completion_percentage}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-green-600 h-2 rounded-full" style={{ width: "92%" }}></div>
+                            <div className="bg-green-600 h-2 rounded-full" style={{ width: `${quickStats.event_completion_percentage}%` }}></div>
                           </div>
                         </div>
                         <div>
                           <div className="flex justify-between text-sm mb-1">
                             <span className="text-gray-600">Donor Retention</span>
-                            <span className="font-semibold">78%</span>
+                            <span className="font-semibold">{quickStats.donor_retention_percentage}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-purple-600 h-2 rounded-full" style={{ width: "78%" }}></div>
+                            <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${quickStats.donor_retention_percentage}%` }}></div>
                           </div>
                         </div>
                       </div>

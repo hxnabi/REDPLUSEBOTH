@@ -8,9 +8,9 @@ const Features = () => {
       icon: Droplet,
       iconBg: "bg-primary",
       title: "Get Started",
-      description: "Signing up with RED+ is quick and easy. Simply create an account, fill in your personal details, and start your journey as a lifesaving donor.",
-      cta: "Register Now",
-      link: "/donor-login",
+      description: "Signing up with RED+ is quick and easy. Check your eligibility, create an account, and start your journey as a lifesaving donor.",
+      cta: "Check Eligibility",
+      link: "/donor-eligibility",
     },
     {
       icon: Shield,
@@ -26,7 +26,7 @@ const Features = () => {
       title: "Why Donate Blood?",
       description: "Donating blood is a simple yet powerful act of compassion. It's a way for you to make a direct and immediate impact on someone's life.",
       cta: "Donate Now",
-      link: "/donor-login",
+      link: "/donor-eligibility",
     },
     {
       icon: Search,

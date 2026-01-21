@@ -170,13 +170,22 @@ export const api = {
     if (params?.to_date) query.set("to_date", params.to_date);
 
     const qs = query.toString();
-    // Use trailing slash to avoid potential routing mismatches on the backend
     const url = `${API_URL}/api/events/${qs ? `?${qs}` : ""}`;
     const response = await fetch(url, {
       method: "GET",
       headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error("Failed to get events");
+    return response.json();
+  },
+
+  async getDistricts(state?: string) {
+    const query = state ? `?state=${encodeURIComponent(state)}` : "";
+    const response = await fetch(`${API_URL}/api/blood-banks/districts/list${query}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to get districts");
     return response.json();
   },
 

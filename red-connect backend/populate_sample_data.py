@@ -1,617 +1,481 @@
 """
-RED+ Sample Data Population Script
-This script populates the database with dummy data for testing the admin dashboard
-Run this script: python populate_sample_data.py
+Sample Data Population Script
+Run this after starting the backend to add sample data
 """
-
+import sys
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
-from app.models import User, Donor, Organizer, Event, BloodBank, Donation, Certificate, BloodInventory
-from passlib.context import CryptContext
-import random
+from app.models import (
+    Base, User, Admin, Donor, Organizer, BloodBank, 
+    BloodInventory, Event, Donation, Certificate,
+    UserRole, BloodType, BloodComponent, EventStatus, DonationStatus
+)
+from app.auth import get_password_hash
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def clear_existing_data(db):
-    """Clear existing data (optional)"""
-    print("⚠️  Clearing existing data...")
-    try:
-        db.query(Certificate).delete()
-        db.query(Donation).delete()
-        db.query(BloodInventory).delete()
-        db.query(Event).delete()
-        db.query(BloodBank).delete()
-        db.query(Donor).delete()
-        db.query(Organizer).delete()
-        # Don't delete admins and their users
-        # db.query(Admin).delete()
-        # Only delete donor and organizer users
-        db.query(User).filter(User.role.in_(['donor', 'organizer'])).delete(synchronize_session=False)
-        db.commit()
-        print("✅ Existing data cleared!")
-    except Exception as e:
-        print(f"❌ Error clearing data: {e}")
-        db.rollback()
-
-def create_sample_users(db):
-    """Create sample donor and organizer users"""
-    print("\n📝 Creating users...")
-    
-    # Default password for all sample users
-    default_password = hash_password("password123")
-    
-    # Donor emails
-    donor_emails = [
-        'john.doe@example.com',
-        'jane.smith@example.com',
-        'mike.wilson@example.com',
-        'sarah.johnson@example.com',
-        'david.brown@example.com',
-        'emily.davis@example.com',
-        'robert.garcia@example.com',
-        'lisa.martinez@example.com',
-        'james.rodriguez@example.com',
-        'maria.hernandez@example.com'
-    ]
-    
-    # Organizer emails
-    organizer_emails = [
-        'contact@redcrossindore.org',
-        'info@rotaryclubindore.org',
-        'admin@lionsclubbhopal.org',
-        'events@ngohelping.org',
-        'contact@youthforchange.org'
-    ]
-    
-    users = []
-    
-    # Create donor users
-    for email in donor_emails:
-        user = User(
-            email=email,
-            hashed_password=default_password,
-            role='donor',
-            is_active=True
-        )
-        db.add(user)
-        users.append(user)
-    
-    # Create organizer users
-    for email in organizer_emails:
-        user = User(
-            email=email,
-            hashed_password=default_password,
-            role='organizer',
-            is_active=True
-        )
-        db.add(user)
-        users.append(user)
-    
-    db.commit()
-    print(f"✅ Created {len(users)} users")
-    return users
-
-def create_sample_donors(db):
-    """Create sample donors"""
-    print("\n💉 Creating donors...")
-    
-    donor_data = [
-        {
-            'full_name': 'John Doe',
-            'phone': '9876543210',
-            'date_of_birth': '1990-05-15',
-            'blood_type': 'A+',
-            'address': '123 MG Road',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452001',
-            'last_donation_date': datetime.now() - timedelta(days=45),
-            'total_donations': 5,
-            'weight': 75.5,
-            'hemoglobin': 14.2,
-            'gender': 'male',
-            'is_active': True
-        },
-        {
-            'full_name': 'Jane Smith',
-            'phone': '9876543211',
-            'date_of_birth': '1992-08-22',
-            'blood_type': 'B+',
-            'address': '456 Vijay Nagar',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452010',
-            'last_donation_date': datetime.now() - timedelta(days=30),
-            'total_donations': 3,
-            'weight': 62.0,
-            'hemoglobin': 13.5,
-            'gender': 'female',
-            'is_active': True
-        },
-        {
-            'full_name': 'Mike Wilson',
-            'phone': '9876543212',
-            'date_of_birth': '1988-03-10',
-            'blood_type': 'O+',
-            'address': '789 Palasia',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452001',
-            'last_donation_date': datetime.now() - timedelta(days=72),
-            'total_donations': 8,
-            'weight': 82.0,
-            'hemoglobin': 15.0,
-            'gender': 'male',
-            'is_active': True
-        },
-        {
-            'full_name': 'Sarah Johnson',
-            'phone': '9876543213',
-            'date_of_birth': '1995-11-30',
-            'blood_type': 'AB+',
-            'address': '321 Rau',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '453331',
-            'last_donation_date': datetime.now() - timedelta(days=20),
-            'total_donations': 2,
-            'weight': 58.5,
-            'hemoglobin': 13.0,
-            'gender': 'female',
-            'is_active': True
-        },
-        {
-            'full_name': 'David Brown',
-            'phone': '9876543214',
-            'date_of_birth': '1987-07-18',
-            'blood_type': 'A-',
-            'address': '654 Aerodrome Road',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452005',
-            'last_donation_date': datetime.now() - timedelta(days=107),
-            'total_donations': 10,
-            'weight': 78.0,
-            'hemoglobin': 14.5,
-            'gender': 'male',
-            'is_active': True
-        },
-        {
-            'full_name': 'Emily Davis',
-            'phone': '9876543215',
-            'date_of_birth': '1993-01-25',
-            'blood_type': 'B-',
-            'address': '987 Sapna Sangeeta',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452001',
-            'last_donation_date': datetime.now() - timedelta(days=33),
-            'total_donations': 4,
-            'weight': 65.0,
-            'hemoglobin': 13.8,
-            'gender': 'female',
-            'is_active': True
-        },
-        {
-            'full_name': 'Robert Garcia',
-            'phone': '9876543216',
-            'date_of_birth': '1991-09-12',
-            'blood_type': 'O-',
-            'address': '147 AB Road',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452008',
-            'last_donation_date': datetime.now() - timedelta(days=15),
-            'total_donations': 6,
-            'weight': 80.5,
-            'hemoglobin': 14.8,
-            'gender': 'male',
-            'is_active': True
-        },
-        {
-            'full_name': 'Lisa Martinez',
-            'phone': '9876543217',
-            'date_of_birth': '1994-04-08',
-            'blood_type': 'AB-',
-            'address': '258 Scheme 54',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452010',
-            'last_donation_date': datetime.now() - timedelta(days=61),
-            'total_donations': 3,
-            'weight': 60.0,
-            'hemoglobin': 13.2,
-            'gender': 'female',
-            'is_active': True
-        },
-        {
-            'full_name': 'James Rodriguez',
-            'phone': '9876543218',
-            'date_of_birth': '1989-12-20',
-            'blood_type': 'A+',
-            'address': '369 Bhawarkua',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452014',
-            'last_donation_date': datetime.now() - timedelta(days=40),
-            'total_donations': 7,
-            'weight': 76.0,
-            'hemoglobin': 14.6,
-            'gender': 'male',
-            'is_active': True
-        },
-        {
-            'full_name': 'Maria Hernandez',
-            'phone': '9876543219',
-            'date_of_birth': '1996-06-14',
-            'blood_type': 'B+',
-            'address': '741 South Tukoganj',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452001',
-            'last_donation_date': datetime.now() - timedelta(days=25),
-            'total_donations': 2,
-            'weight': 63.5,
-            'hemoglobin': 13.4,
-            'gender': 'female',
-            'is_active': True
-        }
-    ]
-    
-    # Get donor users
-    donor_users = db.query(User).filter(User.role == 'donor').all()
-    
-    donors = []
-    for i, data in enumerate(donor_data):
-        donor = Donor(
-            user_id=donor_users[i].id,
-            **data
-        )
-        db.add(donor)
-        donors.append(donor)
-    
-    db.commit()
-    print(f"✅ Created {len(donors)} donors")
-    return donors
-
-def create_sample_organizers(db):
-    """Create sample organizers"""
-    print("\n🏢 Creating organizers...")
-    
-    organizer_data = [
-        {
-            'organization_name': 'Indian Red Cross Society - Indore',
-            'contact_person': 'Dr. Rajesh Sharma',
-            'phone': '0731-2345678',
-            'address': '1 Red Cross Road',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452001',
-            'organization_type': 'ngo',
-            'is_verified': True
-        },
-        {
-            'organization_name': 'Rotary Club of Indore',
-            'contact_person': 'Mr. Amit Patel',
-            'phone': '0731-2456789',
-            'address': '45 Rotary Square',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452010',
-            'organization_type': 'club',
-            'is_verified': True
-        },
-        {
-            'organization_name': 'Lions Club Bhopal',
-            'contact_person': 'Mrs. Priya Verma',
-            'phone': '0755-3456789',
-            'address': '78 Lions Street',
-            'city': 'Bhopal',
-            'state': 'Madhya Pradesh',
-            'pincode': '462001',
-            'organization_type': 'club',
-            'is_verified': True
-        },
-        {
-            'organization_name': 'Helping Hands NGO',
-            'contact_person': 'Mr. Suresh Kumar',
-            'phone': '0731-4567890',
-            'address': '90 Service Lane',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452016',
-            'organization_type': 'ngo',
-            'is_verified': True
-        },
-        {
-            'organization_name': 'Youth for Change',
-            'contact_person': 'Ms. Neha Singh',
-            'phone': '0731-5678901',
-            'address': '12 Youth Plaza',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452001',
-            'organization_type': 'community',
-            'is_verified': True
-        }
-    ]
-    
-    # Get organizer users
-    organizer_users = db.query(User).filter(User.role == 'organizer').all()
-    
-    organizers = []
-    for i, data in enumerate(organizer_data):
-        organizer = Organizer(
-            user_id=organizer_users[i].id,
-            **data
-        )
-        db.add(organizer)
-        organizers.append(organizer)
-    
-    db.commit()
-    print(f"✅ Created {len(organizers)} organizers")
-    return organizers
-
-def create_sample_blood_banks(db):
-    """Create sample blood banks"""
-    print("\n🏥 Creating blood banks...")
-    
-    blood_bank_data = [
-        {
-            'name': 'Choithram Hospital Blood Bank',
-            'address': 'Manik Bagh Road, Indore',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452014',
-            'phone': '0731-2720000',
-            'email': 'bloodbank@choithramhospital.com',
-            'operating_hours': '24/7'
-        },
-        {
-            'name': 'CHL Hospital Blood Bank',
-            'address': 'AB Road, Indore',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452008',
-            'phone': '0731-4290000',
-            'email': 'bloodbank@chlhospitals.com',
-            'operating_hours': '24/7'
-        },
-        {
-            'name': 'Bombay Hospital Blood Bank',
-            'address': '5 Vijay Nagar, Indore',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452010',
-            'phone': '0731-2555000',
-            'email': 'bloodbank@bombayhospital.com',
-            'operating_hours': '8:00 AM - 8:00 PM'
-        },
-        {
-            'name': 'MY Hospital Blood Bank',
-            'address': 'MG Road, Indore',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452001',
-            'phone': '0731-2535555',
-            'email': 'bloodbank@myhospital.gov.in',
-            'operating_hours': '24/7'
-        },
-        {
-            'name': 'Apollo Hospital Blood Bank',
-            'address': 'Scheme 74C, Indore',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'pincode': '452010',
-            'phone': '0731-4268000',
-            'email': 'bloodbank@apolloindore.com',
-            'operating_hours': '24/7'
-        }
-    ]
-    
-    blood_banks = []
-    for data in blood_bank_data:
-        blood_bank = BloodBank(**data)
-        db.add(blood_bank)
-        blood_banks.append(blood_bank)
-    
-    db.commit()
-    print(f"✅ Created {len(blood_banks)} blood banks")
-    return blood_banks
-
-def create_sample_events(db, organizers):
-    """Create sample events"""
-    print("\n📅 Creating events...")
-    
-    # Upcoming events
-    upcoming_events = [
-        {
-            'organizer_id': organizers[0].id,
-            'title': 'Mega Blood Donation Camp 2026',
-            'description': 'Join us for the biggest blood donation drive of the year. Save lives, donate blood!',
-            'event_date': datetime.now() + timedelta(days=26),
-            'start_time': '09:00:00',
-            'end_time': '17:00:00',
-            'venue': 'Red Cross Headquarters, MG Road',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'max_participants': 200,
-            'registered_participants': 45,
-            'status': 'upcoming'
-        },
-        {
-            'organizer_id': organizers[1].id,
-            'title': 'Rotary Blood Drive - February',
-            'description': 'Monthly blood donation camp organized by Rotary Club',
-            'event_date': datetime.now() + timedelta(days=12),
-            'start_time': '10:00:00',
-            'end_time': '16:00:00',
-            'venue': 'Rotary Bhawan, Vijay Nagar',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'max_participants': 150,
-            'registered_participants': 32,
-            'status': 'upcoming'
-        },
-        {
-            'organizer_id': organizers[2].id,
-            'title': 'Corporate Blood Donation Day',
-            'description': 'Special blood donation camp for corporate employees',
-            'event_date': datetime.now() + timedelta(days=31),
-            'start_time': '09:00:00',
-            'end_time': '15:00:00',
-            'venue': 'TCS Campus, Ring Road',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'max_participants': 100,
-            'registered_participants': 18,
-            'status': 'upcoming'
-        }
-    ]
-    
-    # Past events
-    past_events = [
-        {
-            'organizer_id': organizers[0].id,
-            'title': 'New Year Blood Donation 2026',
-            'description': 'Start the new year by saving lives through blood donation',
-            'event_date': datetime.now() - timedelta(days=15),
-            'start_time': '09:00:00',
-            'end_time': '17:00:00',
-            'venue': 'Red Cross Headquarters, MG Road',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'max_participants': 180,
-            'registered_participants': 165,
-            'status': 'completed'
-        },
-        {
-            'organizer_id': organizers[1].id,
-            'title': 'Republic Day Blood Camp',
-            'description': 'Special blood donation camp on Republic Day',
-            'event_date': datetime(2026, 1, 26),
-            'start_time': '08:00:00',
-            'end_time': '14:00:00',
-            'venue': 'District Collectorate',
-            'city': 'Indore',
-            'state': 'Madhya Pradesh',
-            'max_participants': 150,
-            'registered_participants': 142,
-            'status': 'completed'
-        }
-    ]
-    
-    events = []
-    for data in upcoming_events + past_events:
-        event = Event(**data)
-        db.add(event)
-        events.append(event)
-    
-    db.commit()
-    print(f"✅ Created {len(events)} events")
-    return events
-
-def create_sample_donations(db, donors, events):
-    """Create sample donations for completed events"""
-    print("\n💉 Creating donations...")
-    
-    # Get completed events
-    completed_events = [e for e in events if e.status == 'completed']
-    
-    donations = []
-    certificates = []
-    
-    for event in completed_events:
-        # Randomly select 5-8 donors for each event
-        num_donations = random.randint(5, min(8, len(donors)))
-        selected_donors = random.sample(donors, num_donations)
-        
-        for donor in selected_donors:
-            donation = Donation(
-                donor_id=donor.id,
-                event_id=event.id,
-                donation_date=event.event_date,
-                blood_type=donor.blood_type,
-                units=1,
-                status='completed'
-            )
-            db.add(donation)
-            donations.append(donation)
-    
-    db.commit()
-    
-    # Create certificates for donations
-    for donation in donations:
-        cert_num = f"CERT-{datetime.now().year}-{str(donation.id).zfill(4)}"
-        certificate = Certificate(
-            donation_id=donation.id,
-            donor_id=donation.donor_id,
-            certificate_number=cert_num,
-            issue_date=donation.donation_date,
-            blood_units=donation.units,
-            blood_type=donation.blood_type,
-            status='issued',
-            issued_by='RED+ Platform'
-        )
-        db.add(certificate)
-        certificates.append(certificate)
-    
-    db.commit()
-    print(f"✅ Created {len(donations)} donations")
-    print(f"✅ Created {len(certificates)} certificates")
-    return donations, certificates
-
-def main():
-    """Main function to populate database"""
-    print("=" * 60)
-    print("🩸 RED+ Sample Data Population Script")
-    print("=" * 60)
-    
+def populate_data():
     db = SessionLocal()
     
     try:
-        # Ask user if they want to clear existing data
-        response = input("\n⚠️  Do you want to clear existing data? (yes/no): ")
-        if response.lower() == 'yes':
-            clear_existing_data(db)
+        print("Starting sample data population...")
         
-        # Create sample data
-        users = create_sample_users(db)
-        donors = create_sample_donors(db)
-        organizers = create_sample_organizers(db)
-        blood_banks = create_sample_blood_banks(db)
-        events = create_sample_events(db, organizers)
-        donations, certificates = create_sample_donations(db, donors, events)
+        # ========== ADMIN ==========
+        print("Creating Admin...")
+        admin_user = User(
+            email="admin@redconnect.com",
+            hashed_password=get_password_hash("Admin@123"),
+            role=UserRole.ADMIN,
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(admin_user)
+        db.flush()
         
-        print("\n" + "=" * 60)
-        print("✅ SAMPLE DATA CREATED SUCCESSFULLY!")
-        print("=" * 60)
-        print(f"\n📊 Summary:")
-        print(f"   • Users: {len(users)}")
-        print(f"   • Donors: {len(donors)}")
-        print(f"   • Organizers: {len(organizers)}")
-        print(f"   • Blood Banks: {len(blood_banks)}")
-        print(f"   • Events: {len(events)}")
-        print(f"   • Donations: {len(donations)}")
-        print(f"   • Certificates: {len(certificates)}")
-        print(f"\n🔑 Login Credentials:")
-        print(f"   • All sample users password: password123")
-        print(f"   • Donor example: john.doe@example.com")
-        print(f"   • Organizer example: contact@redcrossindore.org")
-        print("\n🎯 You can now login as admin and see all this data!")
-        print("=" * 60)
+        admin = Admin(
+            user_id=admin_user.id,
+            full_name="System Administrator",
+            phone="9999999999"
+        )
+        db.add(admin)
+        
+        # ========== ORGANIZERS ==========
+        print("Creating Organizers...")
+        org1_user = User(
+            email="organizer1@hospital.com",
+            hashed_password=get_password_hash("Org@123"),
+            role=UserRole.ORGANIZER,
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(org1_user)
+        db.flush()
+        
+        organizer1 = Organizer(
+            user_id=org1_user.id,
+            organization_name="City General Hospital",
+            contact_person="Dr. Rajesh Kumar",
+            phone="9876543210",
+            address="123 MG Road, Mumbai",
+            city="Mumbai",
+            state="Maharashtra",
+            pincode="400001"
+        )
+        db.add(organizer1)
+        
+        org2_user = User(
+            email="organizer2@ngo.org",
+            hashed_password=get_password_hash("Org@123"),
+            role=UserRole.ORGANIZER,
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(org2_user)
+        db.flush()
+        
+        organizer2 = Organizer(
+            user_id=org2_user.id,
+            organization_name="Red Cross Delhi",
+            contact_person="Priya Sharma",
+            phone="9876543211",
+            address="456 Connaught Place, Delhi",
+            city="New Delhi",
+            state="Delhi",
+            pincode="110001"
+        )
+        db.add(organizer2)
+        
+        # ========== DONORS ==========
+        print("Creating Donors...")
+        donor1_user = User(
+            email="donor1@gmail.com",
+            hashed_password=get_password_hash("Donor@123"),
+            role=UserRole.DONOR,
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(donor1_user)
+        db.flush()
+        
+        donor1 = Donor(
+            user_id=donor1_user.id,
+            full_name="Amit Verma",
+            phone="9123456780",
+            blood_type=BloodType.A_POSITIVE,
+            date_of_birth=datetime(1995, 5, 15),
+            gender="Male",
+            address="789 Park Street, Kolkata",
+            city="Kolkata",
+            state="West Bengal",
+            pincode="700016",
+            last_donation_date=datetime.utcnow() - timedelta(days=120),
+            total_donations=5
+        )
+        db.add(donor1)
+        
+        donor2_user = User(
+            email="donor2@gmail.com",
+            hashed_password=get_password_hash("Donor@123"),
+            role=UserRole.DONOR,
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(donor2_user)
+        db.flush()
+        
+        donor2 = Donor(
+            user_id=donor2_user.id,
+            full_name="Sneha Patel",
+            phone="9123456781",
+            blood_type=BloodType.O_NEGATIVE,
+            date_of_birth=datetime(1992, 8, 20),
+            gender="Female",
+            address="321 MG Road, Bangalore",
+            city="Bangalore",
+            state="Karnataka",
+            pincode="560001",
+            last_donation_date=datetime.utcnow() - timedelta(days=90),
+            total_donations=8
+        )
+        db.add(donor2)
+        
+        donor3_user = User(
+            email="donor3@gmail.com",
+            hashed_password=get_password_hash("Donor@123"),
+            role=UserRole.DONOR,
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(donor3_user)
+        db.flush()
+        
+        donor3 = Donor(
+            user_id=donor3_user.id,
+            full_name="Rahul Singh",
+            phone="9123456782",
+            blood_type=BloodType.B_POSITIVE,
+            date_of_birth=datetime(1998, 3, 10),
+            gender="Male",
+            address="654 Anna Salai, Chennai",
+            city="Chennai",
+            state="Tamil Nadu",
+            pincode="600002",
+            last_donation_date=datetime.utcnow() - timedelta(days=60),
+            total_donations=3
+        )
+        db.add(donor3)
+        
+        db.flush()
+        
+        # ========== BLOOD BANKS ==========
+        print("Creating Blood Banks...")
+        bb1 = BloodBank(
+            name="Mumbai Central Blood Bank",
+            category="Government",
+            address="12 Dr. Annie Besant Road, Worli",
+            city="Mumbai",
+            state="Maharashtra",
+            pincode="400018",
+            phone="02224938888",
+            email="mumbai.bb@gov.in",
+            operating_hours="24/7",
+            latitude=19.0176,
+            longitude=72.8561
+        )
+        db.add(bb1)
+        
+        bb2 = BloodBank(
+            name="Delhi State Blood Transfusion Council",
+            category="Government",
+            address="Rajpur Road, Civil Lines",
+            city="New Delhi",
+            state="Delhi",
+            pincode="110054",
+            phone="01123817102",
+            email="delhi.bb@gov.in",
+            operating_hours="9:00 AM - 6:00 PM",
+            latitude=28.7041,
+            longitude=77.1025
+        )
+        db.add(bb2)
+        
+        bb3 = BloodBank(
+            name="Bangalore Medical College Blood Bank",
+            category="Government",
+            address="Fort, KR Road",
+            city="Bangalore",
+            state="Karnataka",
+            pincode="560002",
+            phone="08026700001",
+            email="blr.bb@gov.in",
+            operating_hours="8:00 AM - 8:00 PM",
+            latitude=12.9716,
+            longitude=77.5946
+        )
+        db.add(bb3)
+        
+        bb4 = BloodBank(
+            name="Chennai Rotary Blood Bank",
+            category="Private",
+            address="Kilpauk Garden Road",
+            city="Chennai",
+            state="Tamil Nadu",
+            pincode="600010",
+            phone="04426441526",
+            email="chennai.rbb@rotary.org",
+            operating_hours="24/7",
+            latitude=13.0827,
+            longitude=80.2707
+        )
+        db.add(bb4)
+        
+        bb5 = BloodBank(
+            name="Kolkata Red Cross Blood Bank",
+            category="Private",
+            address="7 Red Cross Place",
+            city="Kolkata",
+            state="West Bengal",
+            pincode="700001",
+            phone="03322521616",
+            email="kolkata.rc@redcross.in",
+            operating_hours="9:00 AM - 5:00 PM",
+            latitude=22.5726,
+            longitude=88.3639
+        )
+        db.add(bb5)
+        
+        db.flush()
+        
+        # ========== BLOOD INVENTORY ==========
+        print("Creating Blood Inventory...")
+        blood_types = [BloodType.A_POSITIVE, BloodType.A_NEGATIVE, BloodType.B_POSITIVE, 
+                       BloodType.B_NEGATIVE, BloodType.O_POSITIVE, BloodType.O_NEGATIVE, 
+                       BloodType.AB_POSITIVE, BloodType.AB_NEGATIVE]
+        
+        components = [
+            BloodComponent.WHOLE_BLOOD,
+            BloodComponent.PACKED_RED_CELLS,
+            BloodComponent.PLATELETS,
+            BloodComponent.FRESH_FROZEN_PLASMA,
+            BloodComponent.CRYOPRECIPITATE
+        ]
+        
+        blood_banks = [bb1, bb2, bb3, bb4, bb5]
+        
+        for bb in blood_banks:
+            for blood_type in blood_types:
+                for component in components:
+                    inventory = BloodInventory(
+                        blood_bank_id=bb.id,
+                        blood_type=blood_type,
+                        blood_component=component,
+                        units_available=float(5 + (hash(f"{bb.id}{blood_type}{component}") % 50)),
+                        last_updated=datetime.utcnow()
+                    )
+                    db.add(inventory)
+        
+        db.flush()
+        
+        # ========== EVENTS ==========
+        print("Creating Events...")
+        event1 = Event(
+            organizer_id=organizer1.id,
+            title="Blood Donation Camp - Mumbai",
+            description="Mega blood donation drive organized by City General Hospital",
+            event_date=datetime.utcnow() + timedelta(days=7),
+            start_time="09:00",
+            end_time="17:00",
+            venue="City General Hospital Main Hall, 123 MG Road, Mumbai",
+            city="Mumbai",
+            state="Maharashtra",
+            max_participants=100,
+            registered_participants=45,
+            status=EventStatus.UPCOMING
+        )
+        db.add(event1)
+        
+        event2 = Event(
+            organizer_id=organizer2.id,
+            title="World Blood Donor Day Camp",
+            description="Special camp on World Blood Donor Day",
+            event_date=datetime.utcnow() + timedelta(days=14),
+            start_time="10:00",
+            end_time="16:00",
+            venue="Red Cross Community Center, 456 Connaught Place, Delhi",
+            city="New Delhi",
+            state="Delhi",
+            max_participants=150,
+            registered_participants=80,
+            status=EventStatus.UPCOMING
+        )
+        db.add(event2)
+        
+        event3 = Event(
+            organizer_id=organizer1.id,
+            title="Corporate Blood Donation Drive",
+            description="Blood donation camp for corporate employees",
+            event_date=datetime.utcnow() - timedelta(days=30),
+            start_time="11:00",
+            end_time="15:00",
+            venue="Tech Park Auditorium, Electronic City, Bangalore",
+            city="Bangalore",
+            state="Karnataka",
+            max_participants=75,
+            registered_participants=75,
+            status=EventStatus.COMPLETED
+        )
+        db.add(event3)
+        
+        db.flush()
+        
+        # ========== DONATIONS ==========
+        print("Creating Donations...")
+        donation1 = Donation(
+            donor_id=donor1.id,
+            event_id=event3.id,
+            donation_date=datetime.utcnow() - timedelta(days=120),
+            blood_type=BloodType.A_POSITIVE,
+            units=1.0,
+            status=DonationStatus.COMPLETED,
+            notes="Successful donation, no complications"
+        )
+        db.add(donation1)
+        
+        donation2 = Donation(
+            donor_id=donor2.id,
+            event_id=event3.id,
+            donation_date=datetime.utcnow() - timedelta(days=90),
+            blood_type=BloodType.O_NEGATIVE,
+            units=1.0,
+            status=DonationStatus.COMPLETED,
+            notes="Excellent condition, regular donor"
+        )
+        db.add(donation2)
+        
+        donation3 = Donation(
+            donor_id=donor3.id,
+            donation_date=datetime.utcnow() - timedelta(days=60),
+            blood_type=BloodType.B_POSITIVE,
+            units=1.0,
+            status=DonationStatus.COMPLETED,
+            notes="Walk-in donation, first-time donor"
+        )
+        db.add(donation3)
+        
+        donation4 = Donation(
+            donor_id=donor1.id,
+            event_id=event1.id,
+            donation_date=datetime.utcnow() + timedelta(days=7),
+            blood_type=BloodType.A_POSITIVE,
+            units=1.0,
+            status=DonationStatus.SCHEDULED,
+            notes="Registered for upcoming camp"
+        )
+        db.add(donation4)
+        
+        db.flush()
+        
+        # ========== CERTIFICATES ==========
+        print("Creating Certificates...")
+        cert1 = Certificate(
+            donation_id=donation1.id,
+            donor_id=donor1.id,
+            certificate_number="CERT-2024-001",
+            issue_date=datetime.utcnow() - timedelta(days=120),
+            blood_units=1.0,
+            blood_type=BloodType.A_POSITIVE,
+            issued_by="City General Hospital",
+            status="ISSUED"
+        )
+        db.add(cert1)
+        
+        cert2 = Certificate(
+            donation_id=donation2.id,
+            donor_id=donor2.id,
+            certificate_number="CERT-2024-002",
+            issue_date=datetime.utcnow() - timedelta(days=90),
+            blood_units=1.0,
+            blood_type=BloodType.O_NEGATIVE,
+            issued_by="Red Cross Delhi",
+            status="ISSUED"
+        )
+        db.add(cert2)
+        
+        cert3 = Certificate(
+            donation_id=donation3.id,
+            donor_id=donor3.id,
+            certificate_number="CERT-2024-003",
+            issue_date=datetime.utcnow() - timedelta(days=60),
+            blood_units=1.0,
+            blood_type=BloodType.B_POSITIVE,
+            issued_by="Bangalore Medical College",
+            status="ISSUED"
+        )
+        db.add(cert3)
+        
+        db.commit()
+        
+        print("\n" + "="*60)
+        print("SAMPLE DATA CREATED SUCCESSFULLY!")
+        print("="*60)
+        print("\nLOGIN CREDENTIALS:\n")
+        print("ADMIN:")
+        print("   Email: admin@redconnect.com")
+        print("   Password: Admin@123")
+        print("\nORGANIZER 1:")
+        print("   Email: organizer1@hospital.com")
+        print("   Password: Org@123")
+        print("   Organization: City General Hospital")
+        print("\nORGANIZER 2:")
+        print("   Email: organizer2@ngo.org")
+        print("   Password: Org@123")
+        print("   Organization: Red Cross Delhi")
+        print("\nDONOR 1:")
+        print("   Email: donor1@gmail.com")
+        print("   Password: Donor@123")
+        print("   Name: Amit Verma (A+)")
+        print("\nDONOR 2:")
+        print("   Email: donor2@gmail.com")
+        print("   Password: Donor@123")
+        print("   Name: Sneha Patel (O-)")
+        print("\nDONOR 3:")
+        print("   Email: donor3@gmail.com")
+        print("   Password: Donor@123")
+        print("   Name: Rahul Singh (B+)")
+        print("\n" + "="*60)
+        print("DATA SUMMARY:")
+        print("="*60)
+        print(f"   1 Admin")
+        print(f"   2 Organizers")
+        print(f"   3 Donors")
+        print(f"   5 Blood Banks")
+        print(f"   {len(blood_types) * len(components) * len(blood_banks)} Blood Inventory Records")
+        print(f"   3 Events (2 Upcoming, 1 Completed)")
+        print(f"   4 Donations (3 Completed, 1 Scheduled)")
+        print(f"   3 Certificates")
+        print("="*60 + "\n")
         
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"ERROR: {e}")
         db.rollback()
+        raise
     finally:
         db.close()
 
-if __name__ == "__main__":
-    main()
 
+if __name__ == "__main__":
+    import sys
+    
+    # Check if --yes flag is provided
+    if "--yes" in sys.argv or "-y" in sys.argv:
+        populate_data()
+    else:
+        print("WARNING: This will add sample data to your database!")
+        print("Make sure your backend is running and tables are created.\n")
+        
+        response = input("Continue? (yes/no): ")
+        if response.lower() == "yes":
+            populate_data()
+        else:
+            print("Cancelled")
 

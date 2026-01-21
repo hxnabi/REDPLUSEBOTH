@@ -192,10 +192,10 @@ const DonorLogin = () => {
               New donor?{" "}
               <button
                 type="button"
-                onClick={() => navigate("/donor-register")}
+                onClick={() => navigate("/donor-eligibility")}
                 className="text-primary font-medium hover:underline"
               >
-                Create a donor account
+                Check eligibility & register
               </button>
             </p>
           </form>

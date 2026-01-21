@@ -29,6 +29,13 @@ class EventStatus(str, enum.Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
+class BloodComponent(str, enum.Enum):
+    WHOLE_BLOOD = "Whole Blood"
+    PACKED_RED_CELLS = "Packed Red Blood Cells"
+    PLATELETS = "Platelets"
+    FRESH_FROZEN_PLASMA = "Fresh Frozen Plasma"
+    CRYOPRECIPITATE = "Cryoprecipitate"
+
 class DonationStatus(str, enum.Enum):
     SCHEDULED = "scheduled"
     COMPLETED = "completed"
@@ -149,6 +156,7 @@ class BloodInventory(Base):
     id = Column(Integer, primary_key=True, index=True)
     blood_bank_id = Column(Integer, ForeignKey("blood_banks.id"), nullable=False)
     blood_type = Column(Enum(BloodType), nullable=False)
+    blood_component = Column(Enum(BloodComponent), nullable=False, default=BloodComponent.WHOLE_BLOOD)
     units_available = Column(Integer, default=0)
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

@@ -24,6 +24,22 @@ class AdminStats(BaseModel):
     active_organizers: int
 
 
+class QuickStats(BaseModel):
+    active_users_percentage: float
+    event_completion_percentage: float
+    donor_retention_percentage: float
+
+
+class RecentActivity(BaseModel):
+    id: int
+    type: str  # "donor", "event", "donation", "organizer", "blood_bank"
+    title: str
+    description: str
+    time_ago: str
+    timestamp: datetime
+    badge: str  # "New", "Event", "Donation", etc.
+
+
 class DonorListItem(BaseModel):
     id: int
     full_name: str
@@ -81,9 +97,9 @@ class BloodBankListItem(BaseModel):
         from_attributes = True
 
 
-def verify_admin(current_user: dict = Depends(get_current_user)):
+def verify_admin(current_user: User = Depends(get_current_user)):
     """Verify that the current user is an admin"""
-    if current_user["role"] != "admin":
+    if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -94,7 +110,7 @@ def verify_admin(current_user: dict = Depends(get_current_user)):
 @router.get("/stats", response_model=AdminStats)
 def get_admin_stats(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Get comprehensive statistics for admin dashboard"""
     
@@ -111,13 +127,13 @@ def get_admin_stats(
     total_organizers = db.query(Organizer).count()
     
     # Active organizers (verified)
-    active_organizers = db.query(Organizer).filter(Organizer.is_verified == True).count()
+    active_organizers = db.query(Organizer).filter(Organizer.verified == True).count()
     
     # Total events
     total_events = db.query(Event).count()
     
     # Upcoming events
-    upcoming_events = db.query(Event).filter(Event.date >= datetime.now()).count()
+    upcoming_events = db.query(Event).filter(Event.event_date >= datetime.now().date()).count()
     
     # Total donations
     total_donations = db.query(Donation).count()
@@ -141,12 +157,145 @@ def get_admin_stats(
     )
 
 
+@router.get("/quick-stats", response_model=QuickStats)
+def get_quick_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin)
+):
+    """Get quick statistics for admin dashboard"""
+    
+    # Total users (donors + organizers)
+    total_users = db.query(User).filter(User.role.in_(["donor", "organizer"])).count()
+    
+    # Active users (logged in or donated in last 30 days)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    active_users = db.query(User).filter(
+        and_(
+            User.role.in_(["donor", "organizer"]),
+            or_(
+                User.updated_at >= thirty_days_ago,
+                User.id.in_(
+                    db.query(Donation.donor_id).filter(
+                        Donation.donation_date >= thirty_days_ago.date()
+                    )
+                )
+            )
+        )
+    ).count()
+    
+    active_users_percentage = (active_users / total_users * 100) if total_users > 0 else 0
+    
+    # Event completion rate
+    total_completed_events = db.query(Event).filter(Event.status == "COMPLETED").count()
+    total_events = db.query(Event).count()
+    event_completion_percentage = (total_completed_events / total_events * 100) if total_events > 0 else 0
+    
+    # Donor retention (donors who donated more than once)
+    total_donors = db.query(Donor).count()
+    repeat_donors = db.query(Donor).filter(Donor.total_donations > 1).count()
+    donor_retention_percentage = (repeat_donors / total_donors * 100) if total_donors > 0 else 0
+    
+    return QuickStats(
+        active_users_percentage=round(active_users_percentage, 1),
+        event_completion_percentage=round(event_completion_percentage, 1),
+        donor_retention_percentage=round(donor_retention_percentage, 1)
+    )
+
+
+@router.get("/recent-activity", response_model=List[RecentActivity])
+def get_recent_activity(
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin)
+):
+    """Get recent activity for admin dashboard"""
+    
+    activities = []
+    
+    # Helper function to calculate time ago
+    def time_ago(timestamp):
+        now = datetime.now()
+        diff = now - timestamp
+        
+        if diff.days > 0:
+            if diff.days == 1:
+                return "1 day ago"
+            return f"{diff.days} days ago"
+        elif diff.seconds >= 3600:
+            hours = diff.seconds // 3600
+            return f"{hours} hour{'s' if hours > 1 else ''} ago"
+        elif diff.seconds >= 60:
+            minutes = diff.seconds // 60
+            return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+        else:
+            return "Just now"
+    
+    # Recent donors (limit 2)
+    recent_donors = db.query(Donor).join(User).order_by(Donor.id.desc()).limit(2).all()
+    for donor in recent_donors:
+        activities.append({
+            "id": donor.id,
+            "type": "donor",
+            "title": "New Donor Registered",
+            "description": f"{donor.full_name} joined as a blood donor",
+            "time_ago": time_ago(donor.user.created_at),
+            "timestamp": donor.user.created_at,
+            "badge": "New"
+        })
+    
+    # Recent events (limit 2)
+    recent_events = db.query(Event).order_by(Event.id.desc()).limit(2).all()
+    for event in recent_events:
+        activities.append({
+            "id": event.id,
+            "type": "event",
+            "title": "Event Created",
+            "description": f"{event.title} - {event.city}",
+            "time_ago": time_ago(event.created_at),
+            "timestamp": event.created_at,
+            "badge": "Event"
+        })
+    
+    # Recent donations (limit 2)
+    recent_donations = db.query(Donation).join(Donor).order_by(Donation.id.desc()).limit(2).all()
+    for donation in recent_donations:
+        if donation.status == "COMPLETED":
+            activities.append({
+                "id": donation.id,
+                "type": "donation",
+                "title": "Donation Completed",
+                "description": f"{donation.donor.full_name} donated {donation.units} unit(s)",
+                "time_ago": time_ago(donation.created_at),
+                "timestamp": donation.created_at,
+                "badge": "Donation"
+            })
+    
+    # Recent organizers (limit 2)
+    recent_organizers = db.query(Organizer).join(User).order_by(Organizer.id.desc()).limit(2).all()
+    for organizer in recent_organizers:
+        activities.append({
+            "id": organizer.id,
+            "type": "organizer",
+            "title": "New Organizer Registered",
+            "description": f"{organizer.organization_name} joined the platform",
+            "time_ago": time_ago(organizer.user.created_at),
+            "timestamp": organizer.user.created_at,
+            "badge": "Organization"
+        })
+    
+    # Sort by timestamp and limit
+    activities.sort(key=lambda x: x["timestamp"], reverse=True)
+    activities = activities[:limit]
+    
+    return [RecentActivity(**activity) for activity in activities]
+
+
 @router.get("/donors", response_model=List[DonorListItem])
 def get_all_donors(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Get all donors with their donation counts"""
     
@@ -158,15 +307,15 @@ def get_all_donors(
         Donor.blood_type,
         Donor.date_of_birth,
         Donor.gender,
-        Donor.is_active,
-        Donor.created_at,
+        User.is_active,
+        User.created_at,
         func.count(Donation.id).label('total_donations')
     ).join(User, Donor.user_id == User.id).outerjoin(
         Donation, Donor.id == Donation.donor_id
     ).group_by(
         Donor.id, Donor.full_name, User.email, Donor.phone, 
         Donor.blood_type, Donor.date_of_birth, Donor.gender, 
-        Donor.is_active, Donor.created_at
+        User.is_active, User.created_at
     ).offset(skip).limit(limit).all()
     
     def calculate_age(date_of_birth):
@@ -198,7 +347,7 @@ def get_all_organizers(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Get all organizers with their event counts"""
     
@@ -208,15 +357,15 @@ def get_all_organizers(
         User.email,
         Organizer.contact_person,
         Organizer.phone,
-        Organizer.is_verified,
-        Organizer.created_at,
+        Organizer.verified,
+        User.created_at,
         func.count(Event.id).label('total_events')
     ).join(User, Organizer.user_id == User.id).outerjoin(
         Event, Organizer.id == Event.organizer_id
     ).group_by(
         Organizer.id, Organizer.organization_name, User.email,
         Organizer.contact_person, Organizer.phone,
-        Organizer.is_verified, Organizer.created_at
+        Organizer.verified, User.created_at
     ).offset(skip).limit(limit).all()
     
     return [
@@ -226,7 +375,7 @@ def get_all_organizers(
             email=o.email,
             contact_person=o.contact_person,
             phone=o.phone,
-            is_verified=o.is_verified,
+            is_verified=o.verified,
             created_at=o.created_at,
             total_events=o.total_events
         )
@@ -239,7 +388,7 @@ def get_all_events(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Get all events with participant and donation counts"""
     
@@ -279,7 +428,7 @@ def get_all_blood_banks(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Get all blood banks"""
     
@@ -302,7 +451,7 @@ def get_all_blood_banks(
 def toggle_donor_active(
     donor_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Toggle donor active status"""
     
@@ -323,7 +472,7 @@ def toggle_donor_active(
 def toggle_organizer_verified(
     organizer_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Toggle organizer verified status"""
     
@@ -344,7 +493,7 @@ def toggle_organizer_verified(
 def delete_donor(
     donor_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Delete a donor"""
     
@@ -370,7 +519,7 @@ def delete_donor(
 def delete_organizer(
     organizer_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Delete an organizer"""
     
@@ -396,7 +545,7 @@ def delete_organizer(
 def delete_event(
     event_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(verify_admin)
+    current_user: User = Depends(verify_admin)
 ):
     """Delete an event"""
     

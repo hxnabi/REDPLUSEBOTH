@@ -13,10 +13,10 @@ const Navbar = () => {
   const { toast } = useToast();
 
   const navLinks = [
-    { href: "/blood-banks", label: "Looking for Blood" },
+    { href: "/blood-banks", label: "Find Blood Banks" },
     { href: "/donor-login", label: "Want to Donate Blood" },
     { href: "/organizer-login", label: "Organize Event" },
-    { href: "/blood-banks", label: "Blood Bank" },
+    { href: "/about", label: "About Us" },
   ];
 
   const [dialogOpen, setDialogOpen] = useState(false);
