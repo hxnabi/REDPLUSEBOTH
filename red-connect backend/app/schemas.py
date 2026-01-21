@@ -26,6 +26,24 @@ class TokenData(BaseModel):
     user_id: Optional[int] = None
     role: Optional[str] = None
 
+# Admin Schemas
+class AdminBase(BaseModel):
+    full_name: str
+    phone: Optional[str] = None
+
+class AdminCreate(AdminBase):
+    email: EmailStr
+    password: str
+
+class AdminResponse(AdminBase):
+    id: int
+    user_id: int
+    email: EmailStr
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # Donor Schemas
 class DonorBase(BaseModel):
     full_name: str

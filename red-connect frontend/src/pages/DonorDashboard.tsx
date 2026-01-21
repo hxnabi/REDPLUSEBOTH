@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Settings, Award, Gift, LogOut, User, Heart, Calendar, MapPin } from "lucide-react";
+import { Settings, Award, Gift, LogOut, User, Heart, Calendar, MapPin, CheckCircle2, XCircle, AlertCircle, TrendingUp, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import CertificatesTab from "@/components/CertificatesTab";
 
@@ -120,7 +124,87 @@ const DonorDashboard = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
+    // Auto-save after 2 seconds of no typing (debounce)
+    clearTimeout((window as any).profileSaveTimeout);
+    (window as any).profileSaveTimeout = setTimeout(() => {
+      handleSaveProfile();
+    }, 2000);
   };
+
+  // Real-time eligibility checker
+  const eligibilityStatus = useMemo(() => {
+    const checks = {
+      hemoglobin: { passed: false, message: "", required: true },
+      gender: { passed: false, message: "", required: true },
+      weight: { passed: false, message: "", required: true },
+      age: { passed: false, message: "", required: true },
+      lastDonation: { passed: false, message: "", required: true },
+      medicalConditions: { passed: true, message: "", required: false },
+    };
+
+    // Check hemoglobin
+    if (profile.hemoglobin && profile.gender) {
+      const hb = parseFloat(profile.hemoglobin);
+      const minHb = profile.gender.toLowerCase() === "male" ? 13.0 : 12.0;
+      checks.hemoglobin.passed = hb >= minHb;
+      checks.hemoglobin.message = checks.hemoglobin.passed
+        ? `✓ Hemoglobin ${hb} g/dL (≥${minHb} required)`
+        : `✗ Hemoglobin ${hb} g/dL (Need ≥${minHb} g/dL)`;
+    } else {
+      checks.hemoglobin.message = profile.hemoglobin ? "Gender required to verify" : "Hemoglobin level required";
+    }
+
+    // Check gender
+    checks.gender.passed = !!profile.gender;
+    checks.gender.message = checks.gender.passed ? "✓ Gender specified" : "Gender required";
+
+    // Check weight
+    if (profile.weight) {
+      const weight = parseFloat(profile.weight);
+      checks.weight.passed = weight >= 50;
+      checks.weight.message = checks.weight.passed
+        ? `✓ Weight ${weight} kg (≥50 kg required)`
+        : `✗ Weight ${weight} kg (Need ≥50 kg)`;
+    } else {
+      checks.weight.message = "Weight required";
+    }
+
+    // Check age
+    if (profile.date_of_birth) {
+      const age = new Date().getFullYear() - new Date(profile.date_of_birth).getFullYear();
+      checks.age.passed = age >= 18 && age <= 65;
+      checks.age.message = checks.age.passed
+        ? `✓ Age ${age} years (18-65 required)`
+        : `✗ Age ${age} years (Must be 18-65)`;
+    } else {
+      checks.age.message = "Date of birth required";
+    }
+
+    // Check last donation
+    if (profile.last_donation_date) {
+      const daysSince = Math.floor((new Date().getTime() - new Date(profile.last_donation_date).getTime()) / (1000 * 60 * 60 * 24));
+      checks.lastDonation.passed = daysSince >= 90;
+      checks.lastDonation.message = checks.lastDonation.passed
+        ? `✓ Last donated ${daysSince} days ago (≥90 days required)`
+        : `✗ Last donated ${daysSince} days ago (Wait ${90 - daysSince} more days)`;
+    } else {
+      checks.lastDonation.passed = true;
+      checks.lastDonation.message = "✓ No previous donation recorded";
+    }
+
+    // Check medical conditions (informational only)
+    checks.medicalConditions.passed = !profile.medical_conditions || profile.medical_conditions.trim() === "";
+    checks.medicalConditions.message = checks.medicalConditions.passed
+      ? "✓ No medical conditions reported"
+      : "⚠ Medical conditions noted - consult staff";
+
+    const totalChecks = Object.values(checks).filter(c => c.required).length;
+    const passedChecks = Object.values(checks).filter(c => c.required && c.passed).length;
+    const progress = (passedChecks / totalChecks) * 100;
+    const isEligible = passedChecks === totalChecks;
+
+    return { checks, progress, isEligible, passedChecks, totalChecks };
+  }, [profile]);
 
   const handleSaveProfile = async () => {
     setLoading(true);
@@ -272,6 +356,7 @@ const DonorDashboard = () => {
 
           {activeTab === "profile" && (
             <div className="bg-card rounded-2xl shadow-soft p-8">
+              <h2 className="text-2xl font-bold mb-6">Donor Profile</h2>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Form Section */}
                 <div className="lg:col-span-2 space-y-6">
@@ -499,54 +584,115 @@ const DonorDashboard = () => {
                     />
                   </div>
 
-                  <Button 
-                    onClick={handleSaveProfile}
-                    disabled={loading}
-                    variant="default" 
-                    className="mt-4"
-                  >
-                    {loading ? "Saving..." : "Save Profile"}
-                  </Button>
-
-                  <Button 
-                    onClick={fetchEligibility}
-                    variant="outline" 
-                    className="mt-4 ml-4"
-                  >
-                    Check Donation Eligibility
-                  </Button>
-
-                  {/* Eligibility Display */}
-                  {eligibility && (
-                    <div className={`mt-6 p-4 rounded-lg border-2 ${eligibility.eligible ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
-                      <h3 className={`font-semibold text-lg mb-2 ${eligibility.eligible ? 'text-green-800' : 'text-red-800'}`}>
-                        {eligibility.eligible ? '✓ You are eligible to donate blood!' : '✗ You are currently not eligible to donate'}
-                      </h3>
-                      {eligibility.issues && eligibility.issues.length > 0 && (
-                        <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
-                          {eligibility.issues.map((issue: string, idx: number) => (
-                            <li key={idx}>{issue}</li>
-                          ))}
-                        </ul>
-                      )}
-                      {eligibility.next_eligible_date && (
-                        <p className="mt-2 text-sm font-medium text-blue-700">
-                          Next eligible date: {new Date(eligibility.next_eligible_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex gap-4 pt-4">
+                    <Button 
+                      onClick={handleSaveProfile}
+                      disabled={loading}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {loading ? "Saving..." : "💾 Save Profile"}
+                    </Button>
+                    <p className="text-sm text-muted-foreground flex items-center">
+                      <Activity className="w-4 h-4 mr-2" />
+                      Auto-saves after you stop typing
+                    </p>
+                  </div>
                 </div>
 
-                {/* Profile Card */}
-                <div className="flex flex-col items-center">
-                  <div className="w-40 h-40 rounded-full bg-accent flex items-center justify-center mb-4 shadow-soft">
-                    <User className="w-20 h-20 text-primary" />
+                {/* Real-time Eligibility Card */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-8 space-y-4">
+                    {/* Profile Summary */}
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex flex-col items-center">
+                          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                            <User className="w-12 h-12 text-primary" />
+                          </div>
+                          <h3 className="text-lg font-semibold">{profile.full_name || "Your Name"}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Blood Type: <span className="font-bold text-primary">{profile.blood_type || "N/A"}</span>
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Eligibility Status Card */}
+                    <Card className={`border-2 ${
+                      eligibilityStatus.isEligible 
+                        ? "border-green-500 bg-gradient-to-br from-green-50 to-white" 
+                        : "border-orange-500 bg-gradient-to-br from-orange-50 to-white"
+                    }`}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          {eligibilityStatus.isEligible ? (
+                            <>
+                              <CheckCircle2 className="w-5 h-5 text-green-600" />
+                              <span className="text-green-600">Ready to Donate!</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-5 h-5 text-orange-600" />
+                              <span className="text-orange-600">Complete Profile</span>
+                            </>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Progress */}
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="font-medium">Eligibility Status</span>
+                            <span className="font-bold">{Math.round(eligibilityStatus.progress)}%</span>
+                          </div>
+                          <Progress value={eligibilityStatus.progress} className="h-2" />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {eligibilityStatus.passedChecks}/{eligibilityStatus.totalChecks} requirements met
+                          </p>
+                        </div>
+
+                        <Separator />
+
+                        {/* Requirements */}
+                        <div className="space-y-2">
+                          {Object.entries(eligibilityStatus.checks).filter(([_, check]) => check.required).map(([key, check]) => (
+                            <div key={key} className="flex items-start gap-2">
+                              {check.passed ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                              )}
+                              <p className={`text-xs ${check.passed ? "text-green-600" : "text-red-600"}`}>
+                                {check.message}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <Separator />
+
+                        {/* Action */}
+                        {eligibilityStatus.isEligible ? (
+                          <div className="bg-green-100 rounded-lg p-3">
+                            <p className="text-xs font-bold text-green-700 mb-2">
+                              🎉 You're eligible!
+                            </p>
+                            <Link to="/events">
+                              <Button size="sm" className="w-full bg-green-600 hover:bg-green-700">
+                                Find Events
+                              </Button>
+                            </Link>
+                          </div>
+                        ) : (
+                          <div className="bg-orange-100 rounded-lg p-3">
+                            <p className="text-xs font-medium text-orange-700">
+                              📋 Fill missing fields to check eligibility
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
-                  <h3 className="text-xl font-semibold">{profile.full_name}</h3>
-                  <p className="text-muted-foreground">
-                    Blood Type: {profile.blood_type || "N/A"}
-                  </p>
                 </div>
               </div>
             </div>

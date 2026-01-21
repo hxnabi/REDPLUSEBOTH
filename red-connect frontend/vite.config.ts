@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 5173,
+    allowedHosts: [
+      'hendecagonal-kathlyn-availingly.ngrok-free.dev',
+      '.ngrok-free.app',
+      '.ngrok-free.dev',
+      '.ngrok.io',
+      'localhost',
+    ],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

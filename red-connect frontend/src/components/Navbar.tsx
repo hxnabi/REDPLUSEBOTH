@@ -8,7 +8,7 @@ import RoleSwitchDialog from "./RoleSwitchDialog";
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const isHome = location.pathname === "/";
+  const isHome = location.pathname === "/" || location.pathname === "/home";
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -81,7 +81,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/home" className="flex items-center gap-2">
             <div className="relative w-10 h-10 bg-primary-foreground rounded-lg flex items-center justify-center">
               <span className="text-primary font-display font-bold text-lg">+</span>
               <Droplet className="absolute -top-1 -right-1 w-4 h-4 text-primary-foreground fill-primary-foreground" />

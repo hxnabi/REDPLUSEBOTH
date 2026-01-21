@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from app.database import engine
 from app.models import Base
-from app.routers import auth, donors, organizers, blood_banks, donations, events, certificates
+from app.routers import auth, donors, organizers, blood_banks, donations, events, certificates, admin
 import logging
 
 # Configure logging
@@ -73,6 +73,7 @@ app.include_router(blood_banks.router, prefix="/api/blood-banks", tags=["Blood B
 app.include_router(donations.router, prefix="/api/donations", tags=["Donations"])
 app.include_router(events.router, prefix="/api/events", tags=["Events"])
 app.include_router(certificates.router, prefix="/api/certificates", tags=["Certificates"])
+app.include_router(admin.router, prefix="/api", tags=["Admin"])
 
 @app.get("/")
 def read_root():

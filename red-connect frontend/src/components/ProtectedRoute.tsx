@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  allowedRole: "donor" | "organizer";
+  allowedRole: "donor" | "organizer" | "admin";
 }
 
 const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
@@ -14,7 +14,10 @@ const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
 
   // No token - redirect to login
   if (!token) {
-    return <Navigate to={allowedRole === "donor" ? "/donor-login" : "/organizer-login"} replace />;
+    let loginPath = "/donor-login";
+    if (allowedRole === "organizer") loginPath = "/organizer-login";
+    else if (allowedRole === "admin") loginPath = "/admin-login";
+    return <Navigate to={loginPath} replace />;
   }
 
   // Wrong role - show error and redirect
@@ -24,7 +27,13 @@ const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
       description: `You must be logged in as a ${allowedRole} to access this page`,
       variant: "destructive",
     });
-    return <Navigate to={userRole === "donor" ? "/donor-dashboard" : "/organizer-dashboard"} replace />;
+    
+    let dashboardPath = "/";
+    if (userRole === "donor") dashboardPath = "/donor-dashboard";
+    else if (userRole === "organizer") dashboardPath = "/organizer-dashboard";
+    else if (userRole === "admin") dashboardPath = "/admin-dashboard";
+    
+    return <Navigate to={dashboardPath} replace />;
   }
 
   // Correct role - render the component

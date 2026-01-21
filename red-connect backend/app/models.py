@@ -54,6 +54,19 @@ class User(Base):
     # Relationships
     donor_profile = relationship("Donor", back_populates="user", uselist=False)
     organizer_profile = relationship("Organizer", back_populates="user", uselist=False)
+    admin_profile = relationship("Admin", back_populates="user", uselist=False)
+
+# Admin Model
+class Admin(Base):
+    __tablename__ = "admins"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    full_name = Column(String(255), nullable=False)
+    phone = Column(String(20))
+    
+    # Relationships
+    user = relationship("User", back_populates="admin_profile")
 
 # Donor Model
 class Donor(Base):

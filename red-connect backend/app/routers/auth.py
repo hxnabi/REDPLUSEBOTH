@@ -3,8 +3,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from app.database import get_db
-from app.models import User, Donor, Organizer, UserRole
-from app.schemas import Token, UserLogin, DonorCreate, OrganizerCreate
+from app.models import User, Donor, Organizer, Admin, UserRole
+from app.schemas import Token, UserLogin, DonorCreate, OrganizerCreate, AdminCreate
 from app.auth import (
     verify_password,
     get_password_hash,
@@ -122,6 +122,51 @@ def register_organizer(organizer_data: OrganizerCreate, db: Session = Depends(ge
         "role": user.role
     }
 
+@router.post("/admin/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+def register_admin(admin_data: AdminCreate, db: Session = Depends(get_db)):
+    """Register a new admin."""
+    # Check if email already exists in any account
+    existing_user = db.query(User).filter(User.email == admin_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Email already registered as {existing_user.role}"
+        )
+    
+    # Create user
+    user = User(
+        email=admin_data.email,
+        hashed_password=get_password_hash(admin_data.password),
+        role=UserRole.ADMIN
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    # Create admin profile
+    admin = Admin(
+        user_id=user.id,
+        full_name=admin_data.full_name,
+        phone=admin_data.phone
+    )
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email, "user_id": user.id, "role": user.role},
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": user.id,
+        "role": user.role
+    }
+
 @router.post("/donor/login", response_model=Token)
 def login_donor(user_credentials: UserLogin, db: Session = Depends(get_db)):
     """Login for donors only."""
@@ -163,6 +208,41 @@ def login_organizer(user_credentials: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         User.email == user_credentials.email,
         User.role == UserRole.ORGANIZER
+    ).first()
+    
+    if not user or not verify_password(user_credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is inactive"
+        )
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email, "user_id": user.id, "role": user.role},
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": user.id,
+        "role": user.role
+    }
+
+@router.post("/admin/login", response_model=Token)
+def login_admin(user_credentials: UserLogin, db: Session = Depends(get_db)):
+    """Login for admins only."""
+    user = db.query(User).filter(
+        User.email == user_credentials.email,
+        User.role == UserRole.ADMIN
     ).first()
     
     if not user or not verify_password(user_credentials.password, user.hashed_password):
