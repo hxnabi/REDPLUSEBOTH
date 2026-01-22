@@ -243,12 +243,14 @@ const EventsList: React.FC = () => {
                             {ev.registered_participants || 0} / {ev.max_participants || 0}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden border border-gray-400">
                           <div 
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              percentFilled >= 90 ? "bg-red-500" : percentFilled >= 70 ? "bg-orange-500" : "bg-green-500"
-                            }`}
-                            style={{ width: `${Math.min(percentFilled, 100)}%` }}
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${percentFilled > 0 ? Math.min(percentFilled, 100) : 0}%`,
+                              minWidth: percentFilled > 0 ? '3%' : '0%',
+                              backgroundColor: percentFilled >= 90 ? "#ef4444" : percentFilled >= 70 ? "#f97316" : "#22c55e"
+                            }}
                           />
                         </div>
                       </div>

@@ -816,10 +816,18 @@ const OrganizerDashboard = () => {
                         </div>
                       </div>
 
-                      <div className="bg-muted rounded-full h-2">
+                      <div className="bg-gray-300 rounded-full h-4 overflow-hidden border border-gray-400">
                         <div 
-                          className="bg-green-500 h-2 rounded-full transition-all" 
-                          style={{ width: `${(event.registered_participants / event.max_participants) * 100}%` }}
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${Math.min((event.registered_participants / event.max_participants) * 100, 100)}%`,
+                            minWidth: event.registered_participants > 0 ? '3%' : '0%',
+                            backgroundColor: (event.registered_participants / event.max_participants) * 100 >= 90 
+                              ? "#ef4444" 
+                              : (event.registered_participants / event.max_participants) * 100 >= 70 
+                              ? "#f97316" 
+                              : "#22c55e"
+                          }}
                         />
                       </div>
 

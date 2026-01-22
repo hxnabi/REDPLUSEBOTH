@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { AlertCircle, CheckCircle2, Droplet, ArrowRight, ArrowLeft, Home } from "lucide-react";
 import { Link } from "react-router-dom";
+import BodyHealthAnimation from "@/components/BodyHealthAnimation";
 
 interface Question {
   id: number;
@@ -89,10 +90,36 @@ const DonorEligibilityCheck = () => {
   const progress = ((currentQuestion + 1) / questions.length) * 100;
   const currentQ = questions[currentQuestion];
 
+  // Calculate health percentage based on correct answers out of TOTAL questions
+  const calculateHealthPercentage = () => {
+    let correctAnswers = 0;
+    Object.keys(answers).forEach((questionId) => {
+      const question = questions.find(q => q.id === parseInt(questionId));
+      if (question && answers[parseInt(questionId)] === question.correctAnswer) {
+        correctAnswers++;
+      }
+    });
+    // Divide by total questions (9), not by number answered
+    return Object.keys(answers).length > 0 ? (correctAnswers / questions.length) * 100 : 0;
+  };
+
+  const healthPercentage = calculateHealthPercentage();
+  
+  console.log('Health Calculation:', {
+    answeredQuestions: Object.keys(answers).length,
+    totalQuestions: questions.length,
+    correctAnswers: Object.keys(answers).filter(qId => {
+      const q = questions.find(q => q.id === parseInt(qId));
+      return q && answers[parseInt(qId)] === q.correctAnswer;
+    }).length,
+    healthPercentage: healthPercentage.toFixed(1) + '%'
+  });
+
   const handleAnswer = (answer: "yes" | "no") => {
+    const newAnswers = { ...answers, [currentQ.id]: answer };
     console.log("Answer clicked:", answer, "for question:", currentQ.id);
-    setAnswers({ ...answers, [currentQ.id]: answer });
-    console.log("Updated answers:", { ...answers, [currentQ.id]: answer });
+    console.log("New answers state:", newAnswers);
+    setAnswers(newAnswers);
   };
 
   const handleNext = () => {
@@ -243,7 +270,7 @@ const DonorEligibilityCheck = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-orange-50 py-12 px-4">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="text-center mb-8">
           <Link to="/home" className="inline-flex items-center gap-2 text-primary hover:underline mb-6">
@@ -274,61 +301,80 @@ const DonorEligibilityCheck = () => {
           <Progress value={progress} className="h-3" />
         </div>
 
-        {/* Question Card */}
-        <Card className="p-8 md:p-12 bg-white/95 backdrop-blur-xl shadow-2xl border border-white/50 animate-fade-in">
-          <div className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-              {currentQ.question}
-            </h2>
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-              <p className="text-gray-700 leading-relaxed">
-                {currentQ.description}
-              </p>
-            </div>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Body Health Animation */}
+          <div className="order-2 lg:order-1">
+            <BodyHealthAnimation percentage={healthPercentage} />
           </div>
+
+          {/* Question Card */}
+          <Card className="p-8 bg-white/95 backdrop-blur-xl shadow-2xl border border-white/50 animate-fade-in order-1 lg:order-2">
+            <div className="mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                {currentQ.question}
+              </h2>
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                <p className="text-gray-700 leading-relaxed">
+                  {currentQ.description}
+                </p>
+              </div>
+            </div>
 
           {/* Answer Options */}
           <div className="space-y-4 mb-8">
+            {/* Yes Button */}
             <button
               type="button"
               onClick={() => handleAnswer("yes")}
-              className={`w-full flex items-center justify-center space-x-3 border-2 rounded-xl p-6 transition-all text-lg font-medium ${
-                answers[currentQ.id] === "yes"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-200 hover:border-green-500 hover:bg-green-50 text-gray-700"
-              }`}
+              style={{
+                borderColor: answers[currentQ.id] === "yes" ? "#10b981" : "#e5e7eb",
+                backgroundColor: answers[currentQ.id] === "yes" ? "#ecfdf5" : "white",
+                color: answers[currentQ.id] === "yes" ? "#047857" : "#374151"
+              }}
+              className="w-full flex items-center space-x-3 border-2 rounded-xl p-6 transition-all text-lg font-medium hover:border-green-500"
             >
-              <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                answers[currentQ.id] === "yes" ? "border-green-500 bg-green-500" : "border-gray-300"
-              }`}>
+              <span 
+                style={{
+                  borderColor: answers[currentQ.id] === "yes" ? "#10b981" : "#d1d5db",
+                  backgroundColor: answers[currentQ.id] === "yes" ? "#10b981" : "white"
+                }}
+                className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+              >
                 {answers[currentQ.id] === "yes" && (
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 )}
               </span>
-              <span className="flex-1 text-left">Yes</span>
+              <span className="flex-1 text-left font-semibold">Yes</span>
             </button>
             
+            {/* No Button */}
             <button
               type="button"
               onClick={() => handleAnswer("no")}
-              className={`w-full flex items-center justify-center space-x-3 border-2 rounded-xl p-6 transition-all text-lg font-medium ${
-                answers[currentQ.id] === "no"
-                  ? "border-red-500 bg-red-50 text-red-700"
-                  : "border-gray-200 hover:border-red-500 hover:bg-red-50 text-gray-700"
-              }`}
+              style={{
+                borderColor: answers[currentQ.id] === "no" ? "#ef4444" : "#e5e7eb",
+                backgroundColor: answers[currentQ.id] === "no" ? "#fef2f2" : "white",
+                color: answers[currentQ.id] === "no" ? "#dc2626" : "#374151"
+              }}
+              className="w-full flex items-center space-x-3 border-2 rounded-xl p-6 transition-all text-lg font-medium hover:border-red-500"
             >
-              <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                answers[currentQ.id] === "no" ? "border-red-500 bg-red-500" : "border-gray-300"
-              }`}>
+              <span 
+                style={{
+                  borderColor: answers[currentQ.id] === "no" ? "#ef4444" : "#d1d5db",
+                  backgroundColor: answers[currentQ.id] === "no" ? "#ef4444" : "white"
+                }}
+                className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+              >
                 {answers[currentQ.id] === "no" && (
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 )}
               </span>
-              <span className="flex-1 text-left">No</span>
+              <span className="flex-1 text-left font-semibold">No</span>
             </button>
           </div>
 
@@ -354,7 +400,8 @@ const DonorEligibilityCheck = () => {
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* Tips Section */}
         <div className="mt-8 text-center">

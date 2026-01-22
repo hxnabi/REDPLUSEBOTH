@@ -137,8 +137,17 @@ const EventView: React.FC = () => {
   }
 
   const isFull = typeof event.max_participants === "number" && typeof event.registered_participants === "number" && event.registered_participants >= event.max_participants;
-  const remaining = (event.max_participants || 0) - (event.registered_participants || 0);
-  const percentFilled = event.max_participants ? ((event.registered_participants || 0) / event.max_participants) * 100 : 0;
+  const remaining = Math.max(0, (event.max_participants || 0) - (event.registered_participants || 0));
+  const percentFilled = (event.max_participants && event.max_participants > 0) 
+    ? ((event.registered_participants || 0) / event.max_participants) * 100 
+    : 0;
+  
+  console.log('Event Progress:', {
+    registered: event.registered_participants,
+    max: event.max_participants,
+    percentFilled,
+    remaining
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50">
@@ -322,21 +331,23 @@ const EventView: React.FC = () => {
                   <CardContent className="p-6 space-y-6">
                     {/* Participants Info */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-medium text-gray-600">Participants</span>
                         <span className="text-lg font-bold text-gray-900">
                           {event.registered_participants || 0} / {event.max_participants || 0}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div className="w-full bg-gray-300 rounded-full h-4 overflow-hidden mb-2 border border-gray-400">
                         <div 
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            percentFilled >= 90 ? "bg-red-500" : percentFilled >= 70 ? "bg-orange-500" : "bg-green-500"
-                          }`}
-                          style={{ width: `${Math.min(percentFilled, 100)}%` }}
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${percentFilled > 0 ? Math.min(percentFilled, 100) : 0}%`,
+                            minWidth: percentFilled > 0 ? '3%' : '0%',
+                            backgroundColor: percentFilled >= 90 ? "#ef4444" : percentFilled >= 70 ? "#f97316" : "#22c55e"
+                          }}
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-500">
                         {isFull ? "This event is full" : `${remaining} slot${remaining !== 1 ? 's' : ''} remaining`}
                       </p>
                     </div>
