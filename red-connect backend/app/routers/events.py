@@ -278,13 +278,17 @@ def get_event_participants(
     participants = []
     for donation in donations:
         donor = db.query(Donor).filter(Donor.id == donation.donor_id).first()
+        certificate = db.query(Certificate).filter(Certificate.donation_id == donation.id).first()
         participants.append({
             "donation_id": donation.id,
             "donor_name": donor.full_name,
             "blood_type": donor.blood_type,
             "status": donation.status,
             "donation_date": donation.donation_date,
-            "has_certificate": db.query(Certificate).filter(Certificate.donation_id == donation.id).first() is not None
+            "units": donation.units,
+            "has_certificate": certificate is not None,
+            "certificate_id": certificate.id if certificate else None,
+            "certificate_number": certificate.certificate_number if certificate else None
         })
     
     return {

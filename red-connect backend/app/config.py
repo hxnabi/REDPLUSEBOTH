@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Admin Security
     ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "change-this-admin-secret-key-in-production")
     
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173/auth/google/callback")
+    
     # App Configuration
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
     

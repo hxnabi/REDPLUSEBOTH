@@ -84,10 +84,12 @@ def get_my_certificates(
     certificates = db.query(Certificate).filter(
         Certificate.donor_id == donor.id
     ).order_by(Certificate.issue_date.desc()).all()
-        # Add donor name to each certificate
+    
+    # Add donor name to each certificate
     for cert in certificates:
         cert.donor_name = donor.full_name
-        return certificates
+    
+    return certificates
 
 @router.get("/{certificate_id}", response_model=CertificateResponse)
 def get_certificate(

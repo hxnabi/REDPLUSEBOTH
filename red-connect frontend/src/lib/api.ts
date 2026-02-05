@@ -46,6 +46,33 @@ export const api = {
     return response.json();
   },
 
+  async googleAuthDonor(idToken: string) {
+    const response = await fetch(`${API_URL}/api/auth/google/donor`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    return response.json();
+  },
+
+  async googleAuthOrganizer(idToken: string) {
+    const response = await fetch(`${API_URL}/api/auth/google/organizer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    return response.json();
+  },
+
+  async googleAuthAdmin(idToken: string) {
+    const response = await fetch(`${API_URL}/api/auth/google/admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    return response.json();
+  },
+
   async getCurrentUser() {
     const response = await fetch(`${API_URL}/api/auth/me`, {
       method: "GET",

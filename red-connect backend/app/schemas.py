@@ -15,6 +15,16 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+    role: Optional[UserRole] = None  # Optional role for registration
+
+class GoogleUserInfo(BaseModel):
+    email: EmailStr
+    name: Optional[str] = None
+    picture: Optional[str] = None
+    google_id: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str

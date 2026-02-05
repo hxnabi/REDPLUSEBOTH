@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, AlertCircle, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -95,6 +97,66 @@ const OrganizerLogin = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      if (!credentialResponse.credential) {
+        throw new Error("No credential received from Google");
+      }
+
+      // Send ID token to backend
+      const response = await api.googleAuthOrganizer(credentialResponse.credential);
+      
+      if (response.detail) {
+        setError(response.detail);
+        toast({
+          title: "Login Failed",
+          description: response.detail,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Store token and user info
+      localStorage.setItem("access_token", response.access_token);
+      localStorage.setItem("user_id", String(response.user_id));
+      localStorage.setItem("user_role", response.role);
+      localStorage.setItem("user_email", response.email || "");
+
+      toast({
+        title: "Login Successful",
+        description: "Welcome back, organizer!",
+      });
+
+      setTimeout(() => {
+        navigate("/organizer-dashboard");
+      }, 1000);
+    } catch (err: any) {
+      const errorMsg = err.message || "Failed to login with Google. Please try again.";
+      setError(errorMsg);
+      toast({
+        title: "Error",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError("Google login failed. Please try again.");
+    toast({
+      title: "Error",
+      description: "Google login failed. Please try again.",
+      variant: "destructive",
+    });
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "linear-gradient(135deg, hsl(30, 60%, 70%) 0%, hsl(35, 50%, 65%) 100%)" }}>
       <div className="w-full max-w-4xl bg-card rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
@@ -171,6 +233,26 @@ const OrganizerLogin = () => {
             <Button type="submit" variant="green" size="xl" className="w-full" disabled={loading}>
               {loading ? "Logging in..." : "Login to Organizer Account"}
             </Button>
+
+            <div className="relative flex items-center justify-center">
+              <span className="bg-cream/50 px-4 text-muted-foreground text-sm z-10 relative">OR</span>
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+            </div>
+
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+                theme="outline"
+                size="large"
+                text="signin_with"
+                shape="rectangular"
+                width="100%"
+              />
+            </div>
 
             <p className="text-center text-muted-foreground">
               New organizer?{" "}

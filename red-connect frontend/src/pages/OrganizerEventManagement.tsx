@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Award, CheckCircle, Clock, Users, ArrowLeft } from "lucide-react";
+import { Award, CheckCircle, Clock, Users, ArrowLeft, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 interface Participant {
   donation_id: number;
@@ -12,7 +14,10 @@ interface Participant {
   blood_type: string;
   status: string;
   donation_date: string;
+  units: number;
   has_certificate: boolean;
+  certificate_id?: number;
+  certificate_number?: string;
 }
 
 const OrganizerEventManagement = () => {
@@ -105,6 +110,86 @@ const OrganizerEventManagement = () => {
       });
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleDownloadCertificate = async (certificateId: number, donorName: string) => {
+    try {
+      toast({
+        title: "Generating PDF",
+        description: "Please wait...",
+      });
+
+      const token = localStorage.getItem("access_token");
+
+      // Download certificate HTML directly using certificate ID
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/certificates/${certificateId}/download`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to download certificate");
+      }
+
+      const htmlContent = await response.text();
+
+      // Create a temporary div to render the HTML
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = "fixed";
+      tempDiv.style.left = "0";
+      tempDiv.style.top = "0";
+      tempDiv.style.zIndex = "-1";
+      tempDiv.style.background = "white";
+      document.body.appendChild(tempDiv);
+
+      // Wait for content to render
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Find the certificate element
+      const certificateElement = (tempDiv.querySelector('.certificate') as HTMLElement) || tempDiv;
+
+      // Generate canvas from HTML
+      const canvas = await html2canvas(certificateElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+      });
+
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+
+      // Download PDF
+      pdf.save(`Certificate_${donorName.replace(/\s+/g, '_')}_${eventData?.title?.replace(/\s+/g, '_') || 'Event'}.pdf`);
+
+      // Clean up
+      document.body.removeChild(tempDiv);
+
+      toast({
+        title: "Success",
+        description: "Certificate downloaded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download certificate",
+        variant: "destructive",
+      });
     }
   };
 
@@ -218,13 +303,17 @@ const OrganizerEventManagement = () => {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                         <span>Blood Type: <strong>{participant.blood_type}</strong></span>
+                        <span>Units: <strong>{participant.units}</strong></span>
                         <span>Date: {new Date(participant.donation_date).toLocaleDateString()}</span>
+                        {participant.certificate_number && (
+                          <span>Cert: <strong className="text-primary">{participant.certificate_number}</strong></span>
+                        )}
                       </div>
                     </div>
 
-                    <div>
+                    <div className="flex gap-2">
                       {participant.status.toLowerCase() === "scheduled" && (
                         <Button
                           onClick={() => handleCompleteDonation(participant.donation_id, participant.donor_name)}
@@ -245,10 +334,22 @@ const OrganizerEventManagement = () => {
                         </Button>
                       )}
                       {participant.status.toLowerCase() === "completed" && (
-                        <Button variant="outline" disabled>
-                          <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                          Completed
-                        </Button>
+                        <>
+                          <Button variant="outline" disabled>
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                            Completed
+                          </Button>
+                          {participant.has_certificate && participant.certificate_id && (
+                            <Button
+                              variant="default"
+                              onClick={() => handleDownloadCertificate(participant.certificate_id!, participant.donor_name)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              Download Certificate
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
