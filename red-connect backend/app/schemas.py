@@ -1,7 +1,17 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
 from typing import Optional, List
-from app.models import UserRole, BloodType, BankCategory, EventStatus, DonationStatus
+from app.models import (
+    UserRole,
+    BloodType,
+    BankCategory,
+    EventStatus,
+    DonationStatus,
+    BloodRequestUrgency,
+    BloodRequestApprovalStatus,
+    BloodRequestDonorStatus,
+    BloodRequestCompletionStatus,
+)
 
 # User Schemas
 class UserBase(BaseModel):
@@ -337,6 +347,38 @@ class CertificateResponse(CertificateBase):
 
 class DonationWithCertificate(DonationResponse):
     certificate: Optional[CertificateResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class BloodRequestBase(BaseModel):
+    patient_name: str
+    required_blood_group: BloodType
+    quantity_units: int
+    hospital_name: str
+    hospital_address: Optional[str] = None
+    doctor_name: Optional[str] = None
+    urgency_level: BloodRequestUrgency
+    contact_name: str
+    contact_phone: str
+    contact_email: Optional[EmailStr] = None
+    relation_to_patient: Optional[str] = None
+    additional_notes: Optional[str] = None
+    medical_proof_url: Optional[str] = None
+
+
+class BloodRequestCreate(BloodRequestBase):
+    pass
+
+
+class BloodRequestResponse(BloodRequestBase):
+    id: int
+    approval_status: BloodRequestApprovalStatus
+    donor_status: BloodRequestDonorStatus
+    completion_status: BloodRequestCompletionStatus
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True

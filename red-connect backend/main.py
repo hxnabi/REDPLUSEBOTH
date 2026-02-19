@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from app.database import engine
 from app.models import Base
-from app.routers import auth, donors, organizers, blood_banks, donations, events, certificates, admin
+from app.routers import auth, donors, organizers, blood_banks, donations, events, certificates, admin, blogs, chatbot, blood_requests
 import logging
 
 # Configure logging
@@ -73,7 +73,10 @@ app.include_router(blood_banks.router, prefix="/api/blood-banks", tags=["Blood B
 app.include_router(donations.router, prefix="/api/donations", tags=["Donations"])
 app.include_router(events.router, prefix="/api/events", tags=["Events"])
 app.include_router(certificates.router, prefix="/api/certificates", tags=["Certificates"])
+app.include_router(blogs.router, prefix="/api", tags=["Blogs"])
 app.include_router(admin.router, prefix="/api", tags=["Admin"])
+app.include_router(chatbot.router, prefix="/api", tags=["Chatbot"])
+app.include_router(blood_requests.router, prefix="/api/blood-requests", tags=["Blood Requests"])
 
 @app.get("/")
 def read_root():
@@ -86,4 +89,3 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
-

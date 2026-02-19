@@ -299,15 +299,13 @@ def get_event_participants(
     }
 
 @router.post("/{event_id}/complete-donation/{donation_id}")
-def complete_donation_and_issue_certificate(
+def complete_donation(
     event_id: int,
     donation_id: int,
     current_user: User = Depends(get_current_organizer),
     db: Session = Depends(get_db)
 ):
-    """Mark donation as completed and issue certificate (Organizer only)."""
-    from app.models import Certificate, CertificateStatus
-    import uuid
+    """Mark donation as completed (Organizer only). Certificate can be issued later."""
     
     # Get event
     event = db.query(Event).filter(Event.id == event_id).first()
@@ -352,36 +350,100 @@ def complete_donation_and_issue_certificate(
     donor.total_donations += 1
     donor.last_donation_date = donation.donation_date
     
+    db.commit()
+    
+    return {
+        "message": "Donation marked as completed successfully",
+        "donation_id": donation_id,
+        "donor_name": donor.full_name,
+        "status": "completed"
+    }
+
+@router.post("/{event_id}/issue-certificate/{donation_id}")
+def issue_certificate_for_donation(
+    event_id: int,
+    donation_id: int,
+    current_user: User = Depends(get_current_organizer),
+    db: Session = Depends(get_db)
+):
+    """Issue certificate for a completed donation (Organizer only)."""
+    from app.models import Certificate, CertificateStatus
+    import uuid
+    
+    # Get event
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+    
+    # Check if user owns this event
+    organizer = db.query(Organizer).filter(Organizer.user_id == current_user.id).first()
+    if event.organizer_id != organizer.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to manage this event"
+        )
+    
+    # Get donation
+    donation = db.query(Donation).filter(
+        Donation.id == donation_id,
+        Donation.event_id == event_id
+    ).first()
+    
+    if not donation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Donation not found for this event"
+        )
+    
+    # Check if donation is completed
+    if donation.status != DonationStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only issue certificate for completed donations"
+        )
+    
     # Check if certificate already exists
     existing_cert = db.query(Certificate).filter(
         Certificate.donation_id == donation_id
     ).first()
     
-    if not existing_cert:
-        # Create certificate
-        certificate_number = f"CERT-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-        
-        new_certificate = Certificate(
-            donation_id=donation_id,
-            donor_id=donor.id,
-            certificate_number=certificate_number,
-            issue_date=date.today(),
-            blood_units=donation.units,
-            blood_type=donation.blood_type,
-            status=CertificateStatus.ISSUED,
-            issued_by=organizer.organization_name,
-            notes=f"Certificate for participation in {event.title}"
+    if existing_cert:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Certificate already issued for this donation"
         )
-        
-        db.add(new_certificate)
     
+    # Get donor
+    donor = db.query(Donor).filter(Donor.id == donation.donor_id).first()
+    
+    # Create certificate
+    certificate_number = f"CERT-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+    
+    new_certificate = Certificate(
+        donation_id=donation_id,
+        donor_id=donor.id,
+        certificate_number=certificate_number,
+        issue_date=date.today(),
+        blood_units=donation.units,
+        blood_type=donation.blood_type,
+        status=CertificateStatus.ISSUED,
+        issued_by=organizer.organization_name,
+        notes=f"Certificate for participation in {event.title}"
+    )
+    
+    db.add(new_certificate)
     db.commit()
+    db.refresh(new_certificate)
     
     return {
-        "message": "Donation completed and certificate issued successfully",
+        "message": "Certificate issued successfully",
         "donation_id": donation_id,
         "donor_name": donor.full_name,
-        "certificate_number": new_certificate.certificate_number if not existing_cert else existing_cert.certificate_number
+        "certificate_number": new_certificate.certificate_number,
+        "certificate_id": new_certificate.id
     }
 
 @router.get("/stats/summary")

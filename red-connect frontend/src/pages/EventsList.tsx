@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { formatTimeTo12Hour } from "@/lib/utils";
-import { Calendar, Clock, MapPin, Users, Building2, ArrowRight, Droplet, Sparkles } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Building2, ArrowRight, Droplet, Sparkles ,ArrowLeft} from "lucide-react";
 
 type EventType = {
   id: number;
@@ -126,6 +126,18 @@ const EventsList: React.FC = () => {
 
       {/* Events Grid */}
       <div className="container mx-auto px-4 py-12">
+        <div className="">
+      {localStorage.getItem("access_token") && localStorage.getItem("user_role") === "donor" && (
+            <Button 
+              variant="outline" 
+              onClick={() => navigate("/donor-dashboard")}
+              className="text-[#C8102E] border-[#C8102E] hover:bg-[#C8102E] hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          )}
+          </div>
         {events.length === 0 ? (
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-12 text-center">

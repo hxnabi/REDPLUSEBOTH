@@ -52,8 +52,8 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=True)  # Optional for Google OAuth users
-    google_id = Column(String(255), unique=True, index=True, nullable=True)  # Google OAuth ID
+    hashed_password = Column(String(255), nullable=True)
+    google_id = Column(String(255), unique=True, index=True, nullable=True)
     role = Column(Enum(UserRole), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -63,6 +63,7 @@ class User(Base):
     donor_profile = relationship("Donor", back_populates="user", uselist=False)
     organizer_profile = relationship("Organizer", back_populates="user", uselist=False)
     admin_profile = relationship("Admin", back_populates="user", uselist=False)
+    blog_posts = relationship("BlogPost", back_populates="author")
 
 # Admin Model
 class Admin(Base):
@@ -222,6 +223,54 @@ class Donation(Base):
     event = relationship("Event", back_populates="donations")
     certificate = relationship("Certificate", back_populates="donation", uselist=False)
 
+
+class BloodRequestUrgency(str, enum.Enum):
+  NORMAL = "normal"
+  URGENT = "urgent"
+  CRITICAL = "critical"
+
+
+class BloodRequestApprovalStatus(str, enum.Enum):
+  PENDING = "pending"
+  APPROVED = "approved"
+  REJECTED = "rejected"
+
+
+class BloodRequestDonorStatus(str, enum.Enum):
+  SEARCHING = "searching"
+  MATCHED = "matched"
+  CONFIRMED = "confirmed"
+
+
+class BloodRequestCompletionStatus(str, enum.Enum):
+  OPEN = "open"
+  FULFILLED = "fulfilled"
+  CANCELLED = "cancelled"
+
+
+class BloodRequest(Base):
+  __tablename__ = "blood_requests"
+
+  id = Column(Integer, primary_key=True, index=True)
+  patient_name = Column(String(255), nullable=False)
+  required_blood_group = Column(Enum(BloodType), nullable=False)
+  quantity_units = Column(Integer, nullable=False, default=1)
+  hospital_name = Column(String(255), nullable=False)
+  hospital_address = Column(Text)
+  doctor_name = Column(String(255))
+  urgency_level = Column(Enum(BloodRequestUrgency), nullable=False, default=BloodRequestUrgency.NORMAL)
+  contact_name = Column(String(255), nullable=False)
+  contact_phone = Column(String(20), nullable=False)
+  contact_email = Column(String(255))
+  relation_to_patient = Column(String(100))
+  additional_notes = Column(Text)
+  medical_proof_url = Column(String(255))
+  approval_status = Column(Enum(BloodRequestApprovalStatus), nullable=False, default=BloodRequestApprovalStatus.PENDING)
+  donor_status = Column(Enum(BloodRequestDonorStatus), nullable=False, default=BloodRequestDonorStatus.SEARCHING)
+  completion_status = Column(Enum(BloodRequestCompletionStatus), nullable=False, default=BloodRequestCompletionStatus.OPEN)
+  created_at = Column(DateTime, default=datetime.utcnow)
+  updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 # Certificate Model
 class Certificate(Base):
     __tablename__ = "certificates"
@@ -243,3 +292,26 @@ class Certificate(Base):
     # Relationships
     donation = relationship("Donation", back_populates="certificate")
     donor_profile = relationship("Donor", back_populates="certificates")
+
+class BlogCategory(str, enum.Enum):
+    HEALTH = "Health"
+    EDUCATION = "Education"
+    AWARENESS = "Awareness"
+    STORIES = "Stories"
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    slug = Column(String(255), unique=True, index=True, nullable=False)
+    excerpt = Column(Text)
+    content = Column(Text, nullable=False)
+    category = Column(Enum(BlogCategory), nullable=False)
+    read_time_minutes = Column(Integer)
+    highlight = Column(Boolean, default=False)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    author = relationship("User", back_populates="blog_posts")

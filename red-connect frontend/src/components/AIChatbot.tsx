@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Heart, X, Send, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 
 interface Message {
   id: string;
@@ -10,12 +12,14 @@ interface Message {
 }
 
 const AIChatbot = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       type: "bot",
-      content: "Hello! 👋 Welcome to RED+ Blood Donation Support. How can I assist you today?",
+      content:
+        "Hello! 👋 I am your RED+ blood donation assistant. Ask me anything about eligibility, safety, or the donation process.",
       timestamp: new Date(),
     },
   ]);
@@ -31,42 +35,50 @@ const AIChatbot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim()) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: "user",
-      content: inputValue,
+      content: text,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
     setIsTyping(true);
 
-    // Simulate bot response
-    setTimeout(() => {
-      const botResponses = [
-        "I'd be happy to help you with that! You can find our nearest blood bank locations in the Blood Bank Directory section.",
-        "Thank you for your interest in donating blood! To become a donor, please click on 'Become a Donor' in our navigation menu.",
-        "Blood donation is safe and takes only about 10-15 minutes. You can donate every 56 days if you meet the eligibility criteria.",
-        "For any urgent blood requirements, please contact your nearest blood bank directly or call our emergency helpline.",
-        "Your blood type compatibility information is available on our Donation Process page. Would you like me to guide you there?",
-      ];
-
-      const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)];
+    try {
+      const response = await api.chat(text);
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "bot",
-        content: randomResponse,
+        content: response.answer ?? "I could not understand that question clearly, but I can help with blood donation topics.",
         timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      const botMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        type: "bot",
+        content:
+          "Sorry, I could not reach the support service right now. Please check your internet connection or try again in a moment.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (!inputValue.trim() || isTyping) return;
+    const value = inputValue;
+    setInputValue("");
+    void sendMessage(value);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -74,6 +86,21 @@ const AIChatbot = () => {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleQuickAction = (action: string) => {
+    if (isTyping) return;
+
+    if (action === "Find Blood Bank") {
+      navigate("/blood-banks");
+    } else if (action === "Donate Blood") {
+      navigate("/donor-eligibility");
+    } else if (action === "Check Eligibility") {
+      navigate("/donor-eligibility");
+    }
+
+    setInputValue(action);
+    void sendMessage(action);
   };
 
   return (
@@ -181,9 +208,7 @@ const AIChatbot = () => {
           {["Find Blood Bank", "Donate Blood", "Check Eligibility"].map((action) => (
             <button
               key={action}
-              onClick={() => {
-                setInputValue(action);
-              }}
+              onClick={() => handleQuickAction(action)}
               className="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/80 transition-colors"
             >
               {action}

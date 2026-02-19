@@ -17,6 +17,7 @@ const Navbar = () => {
     { href: "/blood-banks", label: "Find Blood Banks" },
     { href: "/donor-login", label: "Want to Donate Blood" },
     { href: "/organizer-login", label: "Organize Event" },
+    { href: "/blog", label: "Blog" },
     { href: "/about", label: "About Us" },
   ];
 
@@ -172,6 +173,16 @@ const Navbar = () => {
                   </span>
                 </button>
               ))}
+              <Button
+                variant="pill"
+                size="pill"
+                className={`ml-2 shadow-soft ${
+                  scrolled ? "" : "bg-white text-red-600 hover:bg-red-50"
+                }`}
+                onClick={() => navigate("/blood-request")}
+              >
+                Request Blood
+              </Button>
             </div>
 
             {/* Mobile Menu Button - Modern */}
@@ -239,6 +250,12 @@ const Navbar = () => {
                   </span>
                 </button>
               ))}
+              <Button
+                className="mt-3 w-full rounded-full bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => { setIsOpen(false); navigate("/blood-request"); }}
+              >
+                Request Blood
+              </Button>
             </div>
           </div>
         </div>

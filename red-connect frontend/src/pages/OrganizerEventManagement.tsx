@@ -97,7 +97,7 @@ const OrganizerEventManagement = () => {
 
       toast({
         title: "Success!",
-        description: `Donation completed for ${donorName}. Certificate issued.`,
+        description: `Donation marked as completed for ${donorName}.`,
       });
 
       // Refresh participants
@@ -106,6 +106,45 @@ const OrganizerEventManagement = () => {
       toast({
         title: "Error",
         description: error.message || "Failed to complete donation",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleIssueCertificate = async (donationId: number, donorName: string) => {
+    setProcessing(donationId);
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/events/${eventId}/issue-certificate/${donationId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to issue certificate");
+      }
+
+      toast({
+        title: "Certificate Issued!",
+        description: `Certificate issued successfully for ${donorName}.`,
+      });
+
+      // Refresh participants
+      await fetchEventAndParticipants();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to issue certificate",
         variant: "destructive",
       });
     } finally {
@@ -275,7 +314,7 @@ const OrganizerEventManagement = () => {
         </div>
 
         {/* Participants List */}
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>Registered Participants</CardTitle>
           </CardHeader>
@@ -318,7 +357,7 @@ const OrganizerEventManagement = () => {
                         <Button
                           onClick={() => handleCompleteDonation(participant.donation_id, participant.donor_name)}
                           disabled={processing === participant.donation_id}
-                          className="bg-primary hover:bg-primary/90"
+                          className="bg-green-600 hover:bg-green-700"
                         >
                           {processing === participant.donation_id ? (
                             <>
@@ -328,25 +367,44 @@ const OrganizerEventManagement = () => {
                           ) : (
                             <>
                               <CheckCircle className="w-4 h-4 mr-2" />
-                              Complete & Issue Certificate
+                              Mark as Completed
                             </>
                           )}
                         </Button>
                       )}
-                      {participant.status.toLowerCase() === "completed" && (
+                      {participant.status.toLowerCase() === "completed" && !participant.has_certificate && (
+                        <Button
+                          onClick={() => handleIssueCertificate(participant.donation_id, participant.donor_name)}
+                          disabled={processing === participant.donation_id}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          {processing === participant.donation_id ? (
+                            <>
+                              <Clock className="w-4 h-4 mr-2 animate-spin" />
+                              Issuing...
+                            </>
+                          ) : (
+                            <>
+                              <Award className="w-4 h-4 mr-2" />
+                              Issue Certificate
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      {participant.status.toLowerCase() === "completed" && participant.has_certificate && (
                         <>
-                          <Button variant="outline" disabled>
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                            Completed
+                          <Button variant="outline" className="border-green-600 text-green-600" disabled>
+                            <Award className="w-4 h-4 mr-2" />
+                            Certificate Issued
                           </Button>
-                          {participant.has_certificate && participant.certificate_id && (
+                          {participant.certificate_id && (
                             <Button
                               variant="default"
                               onClick={() => handleDownloadCertificate(participant.certificate_id!, participant.donor_name)}
                               className="bg-red-600 hover:bg-red-700"
                             >
                               <Download className="w-4 h-4 mr-2" />
-                              Download Certificate
+                              Download
                             </Button>
                           )}
                         </>
@@ -358,6 +416,64 @@ const OrganizerEventManagement = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Completed Donations - Ready for Certificate */}
+        {participants.filter((p) => p.status.toLowerCase() === "completed" && !p.has_certificate).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-primary" />
+                Completed Donations - Ready for Certificate Issuance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {participants
+                  .filter((p) => p.status.toLowerCase() === "completed" && !p.has_certificate)
+                  .map((participant) => (
+                    <div
+                      key={participant.donation_id}
+                      className="flex items-center justify-between p-4 border-2 border-primary/30 rounded-lg bg-primary/5"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg">{participant.donor_name}</h3>
+                          <Badge className="bg-green-500">Donation Completed</Badge>
+                          <Badge variant="outline" className="border-orange-500 text-orange-600">
+                            Certificate Pending
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                          <span>Blood Type: <strong>{participant.blood_type}</strong></span>
+                          <span>Units: <strong>{participant.units}</strong></span>
+                          <span>Date: {new Date(participant.donation_date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={() => handleIssueCertificate(participant.donation_id, participant.donor_name)}
+                        disabled={processing === participant.donation_id}
+                        className="bg-primary hover:bg-primary/90"
+                        size="lg"
+                      >
+                        {processing === participant.donation_id ? (
+                          <>
+                            <Clock className="w-4 h-4 mr-2 animate-spin" />
+                            Issuing Certificate...
+                          </>
+                        ) : (
+                          <>
+                            <Award className="w-4 h-4 mr-2" />
+                            Issue Certificate Now
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

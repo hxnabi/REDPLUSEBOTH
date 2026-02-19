@@ -216,12 +216,57 @@ export const api = {
     return response.json();
   },
 
+  async createBloodRequest(formData: FormData) {
+    const response = await fetch(`${API_URL}/api/blood-requests/`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) throw new Error("Failed to create blood request");
+    return response.json();
+  },
+
+  async getBloodRequestById(id: number) {
+    const response = await fetch(`${API_URL}/api/blood-requests/${id}`, {
+      method: "GET",
+    });
+    if (!response.ok) throw new Error("Failed to get blood request");
+    return response.json();
+  },
+
   async getMyEvents() {
     const response = await fetch(`${API_URL}/api/events/my-events`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error("Failed to get your events");
+    return response.json();
+  },
+
+  async getBlogs() {
+    const response = await fetch(`${API_URL}/api/blogs/`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to get blogs");
+    return response.json();
+  },
+
+  async getBlogBySlug(slug: string) {
+    const response = await fetch(`${API_URL}/api/blogs/${encodeURIComponent(slug)}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to get blog");
+    return response.json();
+  },
+
+  async chat(message: string) {
+    const response = await fetch(`${API_URL}/api/chatbot/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    if (!response.ok) throw new Error("Failed to get chatbot response");
     return response.json();
   },
 

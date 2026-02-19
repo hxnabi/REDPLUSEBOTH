@@ -19,8 +19,11 @@ import OrganizerEventManagement from "./pages/OrganizerEventManagement";
 import EventView from "./pages/EventView";
 import EventsList from "./pages/EventsList";
 import NotFound from "./pages/NotFound";
+import Blog from "./pages/Blog";
 import AIChatbot from "./components/AIChatbot";
 import ProtectedRoute from "./components/ProtectedRoute";
+import BloodRequestForm from "./pages/BloodRequestForm";
+import BloodRequestStatus from "./pages/BloodRequestStatus";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +37,12 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/home" element={<Index />} />
           <Route path="/blood-banks" element={<BloodBanks />} />
+          <Route path="/blood-request" element={<BloodRequestForm />} />
+          <Route path="/blood-request/track" element={<BloodRequestStatus />} />
+          <Route path="/blood-request/track/:id" element={<BloodRequestStatus />} />
           <Route path="/about" element={<About />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<Blog />} />
           
           {/* Donor Routes */}
           <Route path="/donor-login" element={<DonorLogin />} />

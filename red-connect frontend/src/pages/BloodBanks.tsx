@@ -197,12 +197,39 @@ const BloodBanks = () => {
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="bg-gradient-to-r from-[#C8102E] to-[#a00d25] rounded-2xl p-8 mb-8 shadow-lg">
-            <h1 className="font-display text-3xl md:text-5xl font-bold text-white mb-2">
-              Blood Services Directory
-            </h1>
-            <p className="text-white/90 text-lg">
-              Find blood banks and donation camps near you
-            </p>
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div>
+                <h1 className="font-display text-3xl md:text-5xl font-bold text-white mb-2">
+                  Blood Services Directory
+                </h1>
+                <p className="text-white/90 text-lg">
+                  Find blood banks, check availability, and request blood support
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/40 rounded-full px-5 h-11 text-sm md:text-base"
+                  onClick={() => navigate("/donor-eligibility")}
+                >
+                  Become a Donor
+                </Button>
+                <Button
+                  variant="hero"
+                  className="rounded-full px-6 h-11 text-sm md:text-base shadow-lg shadow-red-900/40"
+                  onClick={() => navigate("/blood-request")}
+                >
+                  Request Blood
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full px-6 h-11 text-sm md:text-base bg-white text-red-700 hover:bg-red-50 border-none"
+                  onClick={() => navigate("/blood-request/track")}
+                >
+                  Track Request
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Tabs for Blood Services */}

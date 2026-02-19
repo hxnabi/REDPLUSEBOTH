@@ -5,6 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Shield,
   Users,
@@ -23,6 +28,9 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  BookOpen,
+  Sparkles,
+  Link2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -100,6 +108,23 @@ interface BloodBank {
   created_at: string;
 }
 
+interface BloodRequest {
+  id: number;
+  patient_name: string;
+  required_blood_group: string;
+  quantity_units: number;
+  hospital_name: string;
+  urgency_level: string;
+  contact_name: string;
+  contact_phone: string;
+  approval_status: string;
+  donor_status: string;
+  completion_status: string;
+  created_at: string;
+}
+
+type BlogCategory = "Health" | "Education" | "Awareness" | "Stories";
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -120,13 +145,24 @@ const AdminDashboard = () => {
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [bloodBanks, setBloodBanks] = useState<BloodBank[]>([]);
+  const [bloodRequests, setBloodRequests] = useState<BloodRequest[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [bloodRequestUrgencyFilter, setBloodRequestUrgencyFilter] = useState<string>("all");
+  const [bloodRequestApprovalFilter, setBloodRequestApprovalFilter] = useState<string>("all");
+  const [bloodRequestCompletionFilter, setBloodRequestCompletionFilter] = useState<string>("all");
   const [quickStats, setQuickStats] = useState<QuickStats>({
     active_users_percentage: 0,
     event_completion_percentage: 0,
     donor_retention_percentage: 0,
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [creatingBlog, setCreatingBlog] = useState(false);
+  const [blogTitle, setBlogTitle] = useState("");
+  const [blogCategory, setBlogCategory] = useState<BlogCategory>("Health");
+  const [blogExcerpt, setBlogExcerpt] = useState("");
+  const [blogContent, setBlogContent] = useState("");
+  const [blogReadTime, setBlogReadTime] = useState<string>("");
+  const [blogHighlight, setBlogHighlight] = useState(false);
 
   useEffect(() => {
     const email = localStorage.getItem("user_email");
@@ -318,6 +354,135 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchBloodRequests = async () => {
+    try {
+      setLoadingData(true);
+      const token = localStorage.getItem("access_token");
+
+      const response = await fetch(`${API_URL}/api/blood-requests/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBloodRequests(data);
+      }
+    } catch (error) {
+      console.error("Error fetching blood requests:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load blood requests",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const updateBloodRequestStatus = async (
+    requestId: number,
+    updates: Partial<Pick<BloodRequest, "approval_status" | "donor_status" | "completion_status">>,
+  ) => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const formData = new FormData();
+      if (updates.approval_status) formData.append("approval_status", updates.approval_status);
+      if (updates.donor_status) formData.append("donor_status", updates.donor_status);
+      if (updates.completion_status) formData.append("completion_status", updates.completion_status);
+
+      const response = await fetch(`${API_URL}/api/blood-requests/${requestId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const detail = errorData && errorData.detail ? String(errorData.detail) : "Failed to update request";
+        throw new Error(detail);
+      }
+
+      toast({
+        title: "Updated",
+        description: "Blood request status updated successfully",
+      });
+      fetchBloodRequests();
+    } catch (error) {
+      console.error("Error updating blood request:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update blood request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetBlogForm = () => {
+    setBlogTitle("");
+    setBlogCategory("Health");
+    setBlogExcerpt("");
+    setBlogContent("");
+    setBlogReadTime("");
+    setBlogHighlight(false);
+  };
+
+  const handleCreateBlog = async () => {
+    if (!blogTitle.trim() || !blogContent.trim()) {
+      toast({
+        title: "Missing fields",
+        description: "Please enter at least a title and content for the blog.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setCreatingBlog(true);
+      const token = localStorage.getItem("access_token");
+
+      const response = await fetch(`${API_URL}/api/admin/blogs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: blogTitle.trim(),
+          category: blogCategory,
+          excerpt: blogExcerpt.trim() || null,
+          content: blogContent.trim(),
+          read_time_minutes: blogReadTime ? Number(blogReadTime) : null,
+          highlight: blogHighlight,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const detail = errorData && errorData.detail ? String(errorData.detail) : "Failed to create blog";
+        throw new Error(detail);
+      }
+
+      resetBlogForm();
+      toast({
+        title: "Blog created",
+        description: "The blog article has been created successfully.",
+      });
+    } catch (error) {
+      console.error("Error creating blog:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create blog",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingBlog(false);
+    }
+  };
+
   const toggleDonorActive = async (donorId: number) => {
     try {
       const token = localStorage.getItem("access_token");
@@ -481,6 +646,18 @@ const AdminDashboard = () => {
     navigate("/admin-login");
   };
 
+  const filteredBloodRequests = bloodRequests.filter((request) => {
+    const urgencyOk =
+      bloodRequestUrgencyFilter === "all" || request.urgency_level === bloodRequestUrgencyFilter;
+    const approvalOk =
+      bloodRequestApprovalFilter === "all" ||
+      request.approval_status === bloodRequestApprovalFilter;
+    const completionOk =
+      bloodRequestCompletionFilter === "all" ||
+      request.completion_status === bloodRequestCompletionFilter;
+    return urgencyOk && approvalOk && completionOk;
+  });
+
   const statCards = [
     {
       title: "Total Donors",
@@ -607,12 +784,14 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-7">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="donors">Donors</TabsTrigger>
                 <TabsTrigger value="organizers">Organizers</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
+                <TabsTrigger value="bloodrequests">Blood Requests</TabsTrigger>
                 <TabsTrigger value="bloodbanks">Blood Banks</TabsTrigger>
+                <TabsTrigger value="blogs">Blogs</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -911,6 +1090,239 @@ const AdminDashboard = () => {
                 </Card>
               </TabsContent>
 
+              {/* Blood Requests Tab */}
+              <TabsContent value="bloodrequests" className="pt-4">
+                <Card>
+                  <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <CardTitle>Blood Request Management</CardTitle>
+                      <CardDescription>
+                        Review incoming blood requests and update their status
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-2 md:items-center">
+                      <div className="flex flex-wrap gap-2">
+                        <Select
+                          value={bloodRequestUrgencyFilter}
+                          onValueChange={setBloodRequestUrgencyFilter}
+                        >
+                          <SelectTrigger className="h-9 w-[130px]">
+                            <SelectValue placeholder="Urgency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All urgencies</SelectItem>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={bloodRequestApprovalFilter}
+                          onValueChange={setBloodRequestApprovalFilter}
+                        >
+                          <SelectTrigger className="h-9 w-[140px]">
+                            <SelectValue placeholder="Approval" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All approvals</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={bloodRequestCompletionFilter}
+                          onValueChange={setBloodRequestCompletionFilter}
+                        >
+                          <SelectTrigger className="h-9 w-[150px]">
+                            <SelectValue placeholder="Completion" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All completion</SelectItem>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        onClick={fetchBloodRequests}
+                        disabled={loadingData}
+                        className="h-9 rounded-full bg-red-600 hover:bg-red-700 px-4"
+                      >
+                        {loadingData ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        Refresh
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {filteredBloodRequests.length === 0 && !loadingData ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Droplet className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                        <p>No blood requests found</p>
+                        <p className="text-sm mt-2">
+                          Adjust the filters above or click Refresh to load blood requests
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Request</TableHead>
+                              <TableHead>Contact</TableHead>
+                              <TableHead>Urgency</TableHead>
+                              <TableHead>Statuses</TableHead>
+                              <TableHead>Created</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {loadingData ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8">
+                                  <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredBloodRequests.map((request) => (
+                                <TableRow key={request.id}>
+                                  <TableCell className="max-w-[220px]">
+                                    <div className="font-medium">
+                                      {request.patient_name} ({request.required_blood_group})
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {request.quantity_units} units • {request.hospital_name}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[200px]">
+                                    <div className="text-sm">{request.contact_name}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {request.contact_phone}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      className={
+                                        request.urgency_level === "critical"
+                                          ? "bg-red-600"
+                                          : request.urgency_level === "urgent"
+                                          ? "bg-orange-500"
+                                          : "bg-gray-600"
+                                      }
+                                    >
+                                      {request.urgency_level}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col gap-1 text-xs">
+                                      <span>
+                                        Approval:{" "}
+                                        <span className="font-semibold">
+                                          {request.approval_status}
+                                        </span>
+                                      </span>
+                                      <span>
+                                        Donor:{" "}
+                                        <span className="font-semibold">
+                                          {request.donor_status}
+                                        </span>
+                                      </span>
+                                      <span>
+                                        Completion:{" "}
+                                        <span className="font-semibold">
+                                          {request.completion_status}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {new Date(request.created_at).toLocaleDateString()}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col gap-2 items-start">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <Button
+                                          size="sm"
+                                          variant="pill"
+                                          onClick={() =>
+                                            updateBloodRequestStatus(request.id, {
+                                              approval_status: "approved",
+                                            })
+                                          }
+                                        >
+                                          Approve
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="pillOutline"
+                                          onClick={() =>
+                                            updateBloodRequestStatus(request.id, {
+                                              approval_status: "rejected",
+                                              completion_status: "cancelled",
+                                            })
+                                          }
+                                        >
+                                          Reject
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="text-red-600 hover:bg-red-50"
+                                          onClick={() => navigate(`/blood-request/track/${request.id}`)}
+                                          aria-label="Open tracking link"
+                                        >
+                                          <Link2 className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        <Button
+                                          size="sm"
+                                          variant="pillOutline"
+                                          onClick={() =>
+                                            updateBloodRequestStatus(request.id, {
+                                              donor_status: "matched",
+                                            })
+                                          }
+                                        >
+                                          Mark Matched
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="pillOutline"
+                                          onClick={() =>
+                                            updateBloodRequestStatus(request.id, {
+                                              donor_status: "confirmed",
+                                            })
+                                          }
+                                        >
+                                          Mark Confirmed
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="pillOutline"
+                                          onClick={() =>
+                                            updateBloodRequestStatus(request.id, {
+                                              completion_status: "fulfilled",
+                                            })
+                                          }
+                                        >
+                                          Mark Fulfilled
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               {/* Events Tab */}
               <TabsContent value="events" className="pt-4">
                 <Card>
@@ -1065,6 +1477,128 @@ const AdminDashboard = () => {
                         </Table>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Blogs Tab */}
+              <TabsContent value="blogs" className="pt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-red-600" />
+                      Create Blog Article
+                    </CardTitle>
+                    <CardDescription>
+                      Add new educational, awareness, or story articles for the Blog & Awareness page.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-6 md:grid-cols-[2fr,1fr]">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="blog-title">Title</Label>
+                          <Input
+                            id="blog-title"
+                            placeholder="10 Benefits of Regular Blood Donation"
+                            value={blogTitle}
+                            onChange={(event) => setBlogTitle(event.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="blog-excerpt">Short description</Label>
+                          <Textarea
+                            id="blog-excerpt"
+                            placeholder="Short 1–2 sentence summary shown on the blog card."
+                            value={blogExcerpt}
+                            onChange={(event) => setBlogExcerpt(event.target.value)}
+                            className="min-h-[80px]"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="blog-content">Full content</Label>
+                          <Textarea
+                            id="blog-content"
+                            placeholder="Write the full article content here..."
+                            value={blogContent}
+                            onChange={(event) => setBlogContent(event.target.value)}
+                            className="min-h-[180px]"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Category</Label>
+                          <Select
+                            value={blogCategory}
+                            onValueChange={(value: BlogCategory) => setBlogCategory(value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Health">Health</SelectItem>
+                              <SelectItem value="Education">Education</SelectItem>
+                              <SelectItem value="Awareness">Awareness</SelectItem>
+                              <SelectItem value="Stories">Stories</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="blog-read-time">Read time (minutes)</Label>
+                          <Input
+                            id="blog-read-time"
+                            type="number"
+                            min={1}
+                            placeholder="5"
+                            value={blogReadTime}
+                            onChange={(event) => setBlogReadTime(event.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border bg-gray-50 px-3 py-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-amber-500" />
+                              <span className="text-sm font-medium">Mark as featured</span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              Featured blogs can be highlighted on the main blog page.
+                            </p>
+                          </div>
+                          <Switch
+                            checked={blogHighlight}
+                            onCheckedChange={(checked) => setBlogHighlight(checked)}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={resetBlogForm}
+                            disabled={creatingBlog}
+                          >
+                            Reset
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={handleCreateBlog}
+                            disabled={creatingBlog}
+                          >
+                            {creatingBlog ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <BookOpen className="w-4 h-4 mr-2" />
+                                Publish Blog
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>

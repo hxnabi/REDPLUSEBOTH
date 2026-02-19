@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from datetime import datetime, timedelta
 from typing import List, Optional
+import re
 from ..database import get_db
-from ..models import User, Donor, Organizer, Event, Donation, BloodBank, Certificate
+from ..models import User, Donor, Organizer, Event, Donation, BloodBank, Certificate, BlogPost, BlogCategory
 from ..auth import get_current_user
 from ..schemas import DonorResponse, OrganizerResponse, EventResponse
 from pydantic import BaseModel
@@ -97,6 +98,32 @@ class BloodBankListItem(BaseModel):
         from_attributes = True
 
 
+class AdminBlogCreate(BaseModel):
+    title: str
+    slug: Optional[str] = None
+    category: BlogCategory
+    excerpt: Optional[str] = None
+    content: str
+    read_time_minutes: Optional[int] = None
+    highlight: Optional[bool] = False
+
+
+class AdminBlogResponse(BaseModel):
+    id: int
+    title: str
+    slug: str
+    category: BlogCategory
+    excerpt: Optional[str] = None
+    content: str
+    read_time_minutes: Optional[int] = None
+    highlight: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 def verify_admin(current_user: User = Depends(get_current_user)):
     """Verify that the current user is an admin"""
     if current_user.role != "admin":
@@ -105,6 +132,20 @@ def verify_admin(current_user: User = Depends(get_current_user)):
             detail="Admin access required"
         )
     return current_user
+
+
+def generate_unique_slug(db: Session, base: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", base.lower()).strip("-")
+    if not slug:
+        slug = "article"
+    original = slug
+    counter = 1
+    existing = db.query(BlogPost).filter(BlogPost.slug == slug).first()
+    while existing is not None:
+        counter += 1
+        slug = f"{original}-{counter}"
+        existing = db.query(BlogPost).filter(BlogPost.slug == slug).first()
+    return slug
 
 
 @router.get("/stats", response_model=AdminStats)
@@ -200,6 +241,35 @@ def get_quick_stats(
         event_completion_percentage=round(event_completion_percentage, 1),
         donor_retention_percentage=round(donor_retention_percentage, 1)
     )
+
+
+@router.post("/blogs", response_model=AdminBlogResponse, status_code=status.HTTP_201_CREATED)
+def create_blog(
+    payload: AdminBlogCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin),
+):
+    slug = payload.slug.lower() if payload.slug else generate_unique_slug(db, payload.title)
+    existing = db.query(BlogPost).filter(BlogPost.slug == slug).first()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Slug already exists",
+        )
+    blog = BlogPost(
+        title=payload.title,
+        slug=slug,
+        category=payload.category,
+        excerpt=payload.excerpt,
+        content=payload.content,
+        read_time_minutes=payload.read_time_minutes,
+        highlight=bool(payload.highlight),
+        created_by_user_id=current_user.id,
+    )
+    db.add(blog)
+    db.commit()
+    db.refresh(blog)
+    return blog
 
 
 @router.get("/recent-activity", response_model=List[RecentActivity])
@@ -560,4 +630,3 @@ def delete_event(
     db.commit()
     
     return {"message": "Event deleted successfully"}
-

@@ -153,7 +153,7 @@ const EventView: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50">
       {/* Breadcrumb & Back Button */}
       <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 flex gap-4">
           <Button 
             variant="ghost" 
             onClick={() => navigate("/events")}
@@ -162,6 +162,16 @@ const EventView: React.FC = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Events
           </Button>
+          {localStorage.getItem("access_token") && localStorage.getItem("user_role") === "donor" && (
+            <Button 
+              variant="outline" 
+              onClick={() => navigate("/donor-dashboard")}
+              className="text-[#C8102E] border-[#C8102E] hover:bg-[#C8102E] hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          )}
         </div>
       </div>
 
