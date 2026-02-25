@@ -102,6 +102,13 @@ const OrganizerDashboard = () => {
     max_participants: "",
   });
 
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [passwordChanging, setPasswordChanging] = useState(false);
+
   // Check authentication on mount
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -194,6 +201,65 @@ const OrganizerDashboard = () => {
       description: "Logged out successfully",
     });
     navigate("/");
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Please fill in all password fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setPasswordChanging(true);
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${API_URL}/api/organizers/change-password`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          current_password: passwordData.currentPassword,
+          new_password: passwordData.newPassword
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to change password");
+      }
+
+      toast({
+        title: "Success",
+        description: "Password changed successfully",
+      });
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setPasswordChanging(false);
+    }
   };
 
   // Fetch organizer events
@@ -911,19 +977,47 @@ const OrganizerDashboard = () => {
                   <p className="text-sm text-muted-foreground">Manage your account preferences</p>
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">Two-Factor Authentication</p>
-                      <p className="text-sm text-muted-foreground">Add extra security to your account</p>
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-4">
+                    <h4 className="font-medium mb-2">Change Password</h4>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="current-password">Current Password</Label>
+                        <Input 
+                          id="current-password" 
+                          type="password" 
+                          placeholder="Enter current password"
+                          value={passwordData.currentPassword}
+                          onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <Input 
+                          id="new-password" 
+                          type="password" 
+                          placeholder="Enter new password"
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="confirm-password">Confirm New Password</Label>
+                        <Input 
+                          id="confirm-password" 
+                          type="password" 
+                          placeholder="Confirm new password"
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                        />
+                      </div>
+                      <Button 
+                        onClick={handlePasswordChange} 
+                        disabled={passwordChanging}
+                        className="w-full sm:w-auto"
+                      >
+                        {passwordChanging ? "Updating..." : "Update Password"}
+                      </Button>
                     </div>
-                    <Button variant="outline">Enable</Button>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">Change Password</p>
-                      <p className="text-sm text-muted-foreground">Update your password regularly</p>
-                    </div>
-                    <Button variant="outline">Change</Button>
                   </div>
                 </div>
               </div>

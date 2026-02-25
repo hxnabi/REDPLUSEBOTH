@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app.models import User, Organizer
-from app.schemas import OrganizerResponse, OrganizerUpdate
-from app.auth import get_current_organizer
+from app.schemas import OrganizerResponse, OrganizerUpdate, PasswordChange
+from app.auth import get_current_organizer, verify_password, get_password_hash
 
 router = APIRouter()
 
@@ -54,6 +54,24 @@ def update_organizer_profile(
         "email": current_user.email,
         "created_at": current_user.created_at
     }
+
+@router.put("/change-password")
+def change_password(
+    password_data: PasswordChange,
+    current_user: User = Depends(get_current_organizer),
+    db: Session = Depends(get_db)
+):
+    """Change organizer password."""
+    if not verify_password(password_data.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password"
+        )
+    
+    current_user.hashed_password = get_password_hash(password_data.new_password)
+    db.commit()
+    
+    return {"message": "Password updated successfully"}
 
 @router.get("/{organizer_id}", response_model=OrganizerResponse)
 def get_organizer_by_id(organizer_id: int, db: Session = Depends(get_db)):

@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     
     # App Configuration
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
+
+    # Email Configuration
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@redconnect.com")
+    EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "RedConnect")
     
     # Database URL
     @property

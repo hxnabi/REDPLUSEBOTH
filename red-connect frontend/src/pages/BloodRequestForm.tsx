@@ -69,7 +69,7 @@ const BloodRequestForm = () => {
       });
       toast({
         title: "Blood request submitted",
-        description: "We have received your request. Our team will contact you shortly.",
+        description: "We have received your request. A confirmation email with your tracking ID has been sent.",
       });
       form.reset();
       setFileName(null);

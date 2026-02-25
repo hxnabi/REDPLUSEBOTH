@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from app.database import get_db
+from app.utils.email import send_blood_request_confirmation
 from app.models import (
   BloodRequest,
   BloodType,
@@ -20,6 +21,7 @@ router = APIRouter()
 
 @router.post("/", response_model=BloodRequestResponse, status_code=status.HTTP_201_CREATED)
 async def create_blood_request(
+  background_tasks: BackgroundTasks,
   patient_name: str = Form(...),
   required_blood_group: BloodType = Form(...),
   quantity_units: int = Form(...),
@@ -75,6 +77,15 @@ async def create_blood_request(
   db.add(new_request)
   db.commit()
   db.refresh(new_request)
+
+  # Send confirmation email
+  if payload.contact_email:
+    background_tasks.add_task(
+      send_blood_request_confirmation,
+      to_email=payload.contact_email,
+      patient_name=payload.patient_name,
+      request_id=new_request.id
+    )
 
   return new_request
 

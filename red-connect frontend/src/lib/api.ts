@@ -122,6 +122,19 @@ export const api = {
     return response.json();
   },
 
+  async changeOrganizerPassword(data: any) {
+    const response = await fetch(`${API_URL}/api/organizers/change-password`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to update password");
+    }
+    return response.json();
+  },
+
   // Blood banks
   async getBloodBanks(params?: {
     state?: string;

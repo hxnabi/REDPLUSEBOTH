@@ -142,6 +142,10 @@ class OrganizerUpdate(BaseModel):
     website: Optional[str] = None
     description: Optional[str] = None
 
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
 class OrganizerResponse(OrganizerBase):
     id: int
     user_id: int
