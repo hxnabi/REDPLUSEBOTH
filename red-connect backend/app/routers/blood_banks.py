@@ -63,6 +63,12 @@ def get_blood_bank(bank_id: int, db: Session = Depends(get_db)):
         )
     return bank
 
+@router.get("/{bank_id}/inventory", response_model=List[BloodInventoryResponse])
+def get_blood_bank_inventory(bank_id: int, db: Session = Depends(get_db)):
+    """Get inventory for a specific blood bank."""
+    inventory = db.query(BloodInventory).filter(BloodInventory.blood_bank_id == bank_id).all()
+    return inventory
+
 @router.put("/{bank_id}", response_model=BloodBankResponse)
 def update_blood_bank(
     bank_id: int,

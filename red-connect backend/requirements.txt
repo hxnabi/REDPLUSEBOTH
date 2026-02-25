@@ -28,3 +28,7 @@ httpx==0.28.1
 google-auth==2.34.0
 google-auth-oauthlib==1.2.1
 google-auth-httplib2==0.2.0
+
+# # Generative AI
+# google-generativeai==0.8.4
+# openai==1.109.1

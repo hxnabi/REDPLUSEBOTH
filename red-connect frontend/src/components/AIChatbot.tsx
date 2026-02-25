@@ -97,6 +97,8 @@ const AIChatbot = () => {
       navigate("/donor-eligibility");
     } else if (action === "Check Eligibility") {
       navigate("/donor-eligibility");
+    } else if (action === "Request Blood") {
+      navigate("/blood-request");
     }
 
     setInputValue(action);
@@ -204,8 +206,8 @@ const AIChatbot = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="px-4 py-2 bg-card border-t border-border flex gap-2 overflow-x-auto">
-          {["Find Blood Bank", "Donate Blood", "Check Eligibility"].map((action) => (
+        <div className="px-4 py-2 bg-card border-t border-border flex gap-2 overflow-x-auto no-scrollbar">
+          {["Find Blood Bank", "Request Blood", "Donate Blood", "Check Eligibility"].map((action) => (
             <button
               key={action}
               onClick={() => handleQuickAction(action)}

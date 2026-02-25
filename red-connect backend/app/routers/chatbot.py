@@ -1,27 +1,82 @@
+import os
+import json
+import logging
+from openai import OpenAI
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List, Optional
-
+from app.utils.chatbot_knowledge import REDCONNECT_KNOWLEDGE_BASE
 
 router = APIRouter()
-
+logger = logging.getLogger(__name__)
 
 class ChatRequest(BaseModel):
   message: str
-
 
 class ChatResponse(BaseModel):
   answer: str
   topic: Optional[str] = None
   suggestions: List[str] = []
 
+# Configure OpenAI API
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+client = None
+
+if OPENAI_API_KEY:
+    client = OpenAI(api_key=OPENAI_API_KEY)
+else:
+    logger.warning("OPENAI_API_KEY not found in environment variables. Chatbot will use fallback mode.")
 
 def normalize(text: str) -> str:
   return text.strip().lower()
 
-
-def get_chatbot_answer(message: str) -> ChatResponse:
+def get_fallback_response(message: str) -> ChatResponse:
+  """
+  Fallback rule-based logic when AI is unavailable.
+  """
   text = normalize(message)
+
+  # Greetings
+  if any(keyword in text for keyword in ["hi", "hello", "hey", "greetings", "good morning", "good evening"]):
+    return ChatResponse(
+      topic="greeting",
+      answer=(
+        "Hello! I'm the RedConnect Assistant. I can help you find blood banks, check eligibility, "
+        "or answer questions about blood donation.\n\n"
+        "How can I help you today?"
+      ),
+      suggestions=[
+        "Who can donate blood?",
+        "Find a blood bank",
+        "Request blood for a patient"
+      ],
+    )
+
+  # Redirections / Navigation
+  if any(keyword in text for keyword in ["find blood", "blood bank", "location", "near me"]):
+    return ChatResponse(
+      topic="navigation_bloodbanks",
+      answer=(
+        "You can search for blood banks in your area on our Blood Banks page. "
+        "We have listings for major cities and states."
+      ),
+      suggestions=[
+        "Who can donate blood?",
+        "Request blood"
+      ],
+    )
+
+  if any(keyword in text for keyword in ["request", "need blood", "patient"]):
+    return ChatResponse(
+      topic="navigation_request",
+      answer=(
+        "I'm taking you to the Request Blood page. Please fill in the patient details so we can assist you with finding a donor."
+      ),
+      suggestions=[
+        "Track my request",
+        "Find a blood bank"
+      ],
+    )
 
   if any(keyword in text for keyword in ["eligib", "who can donate", "can i donate", "eligible to donate"]):
     return ChatResponse(
@@ -98,104 +153,40 @@ def get_chatbot_answer(message: str) -> ChatResponse:
       ),
       suggestions=[
         "What should I do after donating?",
-        "Who should not donate blood?",
+        "Who is eligible to donate?",
       ],
     )
-
-  if any(keyword in text for keyword in ["after donating", "after donation", "post donation", "what to do after"]):
+    
+  if any(keyword in text for keyword in ["thank", "thanks"]):
     return ChatResponse(
-      topic="after_donation",
+      topic="appreciation",
       answer=(
-        "After donating blood you should:\n"
-        "- Rest for 10–15 minutes and have snacks and fluids\n"
-        "- Keep the bandage on for a few hours\n"
-        "- Drink plenty of water for the next 24 hours\n"
-        "- Avoid heavy lifting or intense exercise for the rest of the day\n\n"
-        "If you feel dizzy, sit or lie down and raise your legs slightly. If symptoms continue, "
-        "contact the blood center or a doctor."
+        "You're welcome! Let me know if you need anything else."
       ),
       suggestions=[
-        "How long does donating blood take?",
-        "Is blood donation safe?",
+        "Donate blood",
+        "Find a blood bank"
       ],
     )
 
-  if any(keyword in text for keyword in ["safe", "safety", "is it safe", "risk", "dangerous"]):
+  if any(keyword in text for keyword in ["bye", "goodbye"]):
     return ChatResponse(
-      topic="safety",
+      topic="farewell",
       answer=(
-        "Blood donation is very safe when done at an approved center. Needles and bags are sterile "
-        "and used only once. Your health is checked before donation, and staff monitor you during "
-        "the process.\n\n"
-        "Common minor side effects are light dizziness or bruising around the needle site, which "
-        "usually go away quickly."
+        "Goodbye! Stay healthy and safe."
       ),
-      suggestions=[
-        "Who can donate blood?",
-        "What happens to my blood after donation?",
-      ],
+      suggestions=[],
     )
 
-  if any(keyword in text for keyword in ["blood type", "compatible", "compatibility"]):
-    return ChatResponse(
-      topic="blood_type",
-      answer=(
-        "Blood type compatibility is important for safe transfusions.\n"
-        "- Type O negative is called a universal donor for red cells\n"
-        "- Type AB positive is a universal recipient\n"
-        "- In practice, hospitals match both ABO and Rh type carefully\n\n"
-        "For donation, you can give blood regardless of your type. The blood bank will test and "
-        "store it for suitable patients."
-      ),
-      suggestions=[
-        "Who can receive my blood?",
-        "How often can I donate blood?",
-      ],
-    )
-
-  if any(keyword in text for keyword in ["where", "nearest", "near me", "blood bank"]):
-    return ChatResponse(
-      topic="finding_blood_bank",
-      answer=(
-        "To find the nearest blood bank or donation camp, you can:\n"
-        "- Use the Blood Bank section inside this application if available\n"
-        "- Contact your local hospital for recommended centers\n"
-        "- Check official health department or Red Cross websites in your region"
-      ),
-      suggestions=[
-        "How do I prepare for my first donation?",
-        "Is blood donation safe?",
-      ],
-    )
-
-  if any(keyword in text for keyword in ["first time", "never donated", "new donor"]):
-    return ChatResponse(
-      topic="first_time_donor",
-      answer=(
-        "For first‑time donors, the process is simple:\n"
-        "1) Register and fill out a short health questionnaire\n"
-        "2) A nurse checks your blood pressure, pulse, and hemoglobin\n"
-        "3) You donate blood while resting comfortably\n"
-        "4) You relax, have snacks, and then can go home\n\n"
-        "Staff will explain every step and answer any questions you have at the center."
-      ),
-      suggestions=[
-        "What should I eat before donating?",
-        "How long does donating blood take?",
-      ],
-    )
-
+  # Default fallback
   return ChatResponse(
     topic="general",
     answer=(
-      "I can help answer questions about blood donation, such as:\n"
-      "- Who can donate and how often\n"
-      "- How safe the process is\n"
-      "- How to prepare before and after donation\n\n"
-      "Please try asking in another way, for example:\n"
-      "• Who is eligible to donate blood?\n"
-      "• Is blood donation safe?\n"
-      "• How often can I donate blood?"
+      "I'm sorry, I didn't quite catch that. I can help with:\n"
+      "- Finding blood banks\n"
+      "- Eligibility for donation\n"
+      "- Requesting blood for a patient\n\n"
+      "Could you please rephrase your question?"
     ),
     suggestions=[
       "Who is eligible to donate blood?",
@@ -204,8 +195,62 @@ def get_chatbot_answer(message: str) -> ChatResponse:
     ],
   )
 
+def get_chatbot_answer(message: str) -> ChatResponse:
+    # If no API key or client, use fallback
+    if not client:
+        return get_fallback_response(message)
+
+    try:
+        # Prompt Engineering for JSON output
+        prompt = f"""
+        You are the AI Assistant for RedConnect. Use the following knowledge base to answer the user's question.
+        
+        KNOWLEDGE BASE:
+        {REDCONNECT_KNOWLEDGE_BASE}
+        
+        USER QUESTION: "{message}"
+        
+        INSTRUCTIONS:
+        1. Answer based ONLY on the knowledge base. If the answer is not there, politely say you don't know and suggest contacting support.
+        2. Provide your response in strictly valid JSON format with the following keys:
+           - "answer": The text of your answer. Keep it helpful, concise, and professional.
+           - "topic": A short topic string (e.g., "eligibility", "donation_process", "general").
+           - "suggestions": A list of 2-3 short follow-up questions the user might ask next.
+        3. Do NOT include markdown code blocks (like ```json) in the response. Just return the raw JSON string.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that outputs JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+        )
+        
+        text_response = response.choices[0].message.content.strip()
+        
+        # Cleanup markdown if present
+        if text_response.startswith("```json"):
+            text_response = text_response[7:]
+        if text_response.startswith("```"):
+            text_response = text_response[3:]
+        if text_response.endswith("```"):
+            text_response = text_response[:-3]
+            
+        data = json.loads(text_response.strip())
+        
+        return ChatResponse(
+            answer=data.get("answer", "I'm having trouble understanding that right now."),
+            topic=data.get("topic", "general"),
+            suggestions=data.get("suggestions", [])
+        )
+        
+    except Exception as e:
+        logger.error(f"OpenAI API Error: {e}")
+        # Fallback to rule-based system on error
+        return get_fallback_response(message)
 
 @router.post("/chatbot/query", response_model=ChatResponse)
 def chatbot_query(request: ChatRequest) -> ChatResponse:
   return get_chatbot_answer(request.message)
-

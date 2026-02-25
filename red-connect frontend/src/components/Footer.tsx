@@ -63,9 +63,9 @@ const Footer = () => {
             <ul className="space-y-3">
               {[
                 { to: "/", label: "Home" },
-                { to: "/about-us", label: "About Us" },
-                { to: "/find-blood", label: "Find Blood" },
-                { to: "/donate-blood", label: "Donate Blood" },
+                { to: "/about", label: "About Us" },
+                { to: "/blood-banks", label: "Find Blood" },
+                { to: "/donor-register", label: "Donate Blood" },
                 { to: "/blood-banks", label: "Blood Banks" },
               ].map((link) => (
                 <li key={link.to}>
@@ -91,9 +91,9 @@ const Footer = () => {
               {[
                 { to: "/donor-dashboard", label: "Donor Portal" },
                 { to: "/organizer-dashboard", label: "Organizer Portal" },
-                { to: "/bloodbank-dashboard", label: "Blood Bank Portal" },
-                { to: "/donation-process", label: "Donation Process" },
-                { to: "/faqs", label: "FAQs" },
+                { to: "/admin-dashboard", label: "Admin Portal" },
+                { to: "/about", label: "Donation Process" },
+                { to: "/about", label: "FAQs" },
               ].map((link) => (
                 <li key={link.to}>
                   <Link 
@@ -197,15 +197,15 @@ const Footer = () => {
           </p>
           
           <div className="flex items-center gap-6 text-sm">
-            <Link to="/privacy" className="text-white/60 hover:text-white transition-colors">
+            <Link to="/" className="text-white/60 hover:text-white transition-colors">
               Privacy Policy
             </Link>
             <span className="text-white/30">•</span>
-            <Link to="/terms" className="text-white/60 hover:text-white transition-colors">
+            <Link to="/" className="text-white/60 hover:text-white transition-colors">
               Terms of Service
             </Link>
             <span className="text-white/30">•</span>
-            <Link to="/cookies" className="text-white/60 hover:text-white transition-colors">
+            <Link to="/" className="text-white/60 hover:text-white transition-colors">
               Cookies
             </Link>
           </div>

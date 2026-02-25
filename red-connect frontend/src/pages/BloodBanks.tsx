@@ -6,7 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Calendar, MapPin, Users, Clock, Droplet } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ChevronLeft, ChevronRight, Calendar, MapPin, Users, Clock, Droplet, Share2, Copy, MessageCircle, Phone, Mail } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,6 +55,32 @@ const BloodBanks = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  const [selectedBankInventory, setSelectedBankInventory] = useState<any[]>([]);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [selectedBankName, setSelectedBankName] = useState("");
+
+  // Share Dialog State
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareBank, setShareBank] = useState<any>(null);
+
+  const handleStockClick = async (bank: any) => {
+    setLoading(true);
+    try {
+      const inventory = await api.getBloodBankInventory(bank.id);
+      setSelectedBankInventory(inventory || []);
+      setSelectedBankName(bank.name);
+      setIsInventoryOpen(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch blood stock",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -48,7 +89,10 @@ const BloodBanks = () => {
           api.getBloodBanks(),
           api.getBloodBankStates().catch(() => ({ states: [] })),
           api.getDistricts().catch(() => ({ districts: [] })),
-          api.getEvents({ status: "upcoming" }).catch(() => []),
+          api.getEvents({ 
+            status: "upcoming",
+            from_date: new Date().toISOString().split('T')[0]
+          }).catch(() => []),
         ]);
         setBanks(banksRes || []);
         setEvents(eventsRes || []);
@@ -70,7 +114,14 @@ const BloodBanks = () => {
       const params: any = { status: "upcoming" };
       if (campState !== "All States") params.state = campState;
       if (campDistrict !== "All Districts") params.city = campDistrict;
-      if (campStartDate) params.from_date = campStartDate;
+      
+      // Default to today if no start date selected
+      if (campStartDate) {
+        params.from_date = campStartDate;
+      } else {
+        params.from_date = new Date().toISOString().split('T')[0];
+      }
+      
       if (campEndDate) params.to_date = campEndDate;
       const data = await api.getEvents(params);
       setEvents(data || []);
@@ -104,7 +155,12 @@ const BloodBanks = () => {
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleShare = (bank: any) => {
-    const message = `🩸 Blood Bank Information\n\n` +
+    setShareBank(bank);
+    setShareDialogOpen(true);
+  };
+
+  const getShareMessage = (bank: any) => {
+    return `🩸 Blood Bank Information\n\n` +
       `Name: ${bank.name}\n` +
       `Address: ${bank.address}, ${bank.city}, ${bank.state}\n` +
       `Phone: ${bank.phone}\n` +
@@ -112,30 +168,37 @@ const BloodBanks = () => {
       `Category: ${bank.category}\n` +
       `Available Blood Types: ${bank.available_blood_types || "Contact for details"}\n\n` +
       `Find more: http://localhost:5173/blood-banks`;
-    
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    const emailSubject = `Blood Bank Information - ${bank.name}`;
-    const emailBody = message;
-    const emailUrl = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
-    
-    // Show share options
-    if (navigator.share) {
-      navigator.share({
-        title: `Blood Bank - ${bank.name}`,
-        text: message,
-      }).catch(() => {
-        // Fallback to WhatsApp
-        window.open(whatsappUrl, '_blank');
-      });
-    } else {
-      // Show modal with share options
-      const choice = window.confirm("Share via WhatsApp? (Click OK)\nOr Email? (Click Cancel)");
-      if (choice) {
-        window.open(whatsappUrl, '_blank');
-      } else {
-        window.location.href = emailUrl;
-      }
-    }
+  };
+
+  const handleWhatsappShare = () => {
+    if (!shareBank) return;
+    const message = getShareMessage(shareBank);
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+    setShareDialogOpen(false);
+  };
+
+  const handleCopyShare = () => {
+    if (!shareBank) return;
+    const message = getShareMessage(shareBank);
+    navigator.clipboard.writeText(message);
+    toast({
+      title: "Copied to clipboard",
+      description: "Blood bank details copied successfully",
+    });
+    setShareDialogOpen(false);
+  };
+
+  const handleNativeShare = () => {
+     if (!shareBank) return;
+     const message = getShareMessage(shareBank);
+     if (navigator.share) {
+       navigator.share({
+         title: `Blood Bank - ${shareBank.name}`,
+         text: message,
+       }).catch(console.error);
+       setShareDialogOpen(false);
+     }
   };
 
   const handleRegisterForCamp = (eventId: number) => {
@@ -408,10 +471,12 @@ const BloodBanks = () => {
                             </td>
                             <td className="px-4 py-4">
                               <Button
-                                variant="link"
-                                className="text-blue-600 hover:underline p-0 h-auto font-semibold"
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                                 onClick={() => handleShare(bank)}
                               >
+                                <Share2 className="w-4 h-4 mr-1" />
                                 Share
                               </Button>
                             </td>
@@ -583,6 +648,7 @@ const BloodBanks = () => {
                           <Button
                             variant="outline"
                             className="rounded-full border-green-500 text-green-700 hover:bg-green-50"
+                            onClick={() => handleStockClick(bank)}
                           >
                             Stock
                           </Button>
@@ -802,6 +868,106 @@ const BloodBanks = () => {
           </Tabs>
         </div>
       </main>
+
+      {/* Share Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share Blood Bank Details</DialogTitle>
+            <DialogDescription>
+              Share contact information for {shareBank?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+             <Button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white" onClick={handleWhatsappShare}>
+               <MessageCircle className="mr-2 h-4 w-4" /> Share on WhatsApp
+             </Button>
+             
+             {navigator.share && (
+               <Button variant="secondary" className="w-full" onClick={handleNativeShare}>
+                 <Share2 className="mr-2 h-4 w-4" /> Share via...
+               </Button>
+             )}
+
+             <Button variant="outline" className="w-full" onClick={handleCopyShare}>
+               <Copy className="mr-2 h-4 w-4" /> Copy Details
+             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inventory Dialog */}
+      <Dialog open={isInventoryOpen} onOpenChange={setIsInventoryOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Blood Stock - {selectedBankName}</DialogTitle>
+            <DialogDescription>
+              Current available blood units and components.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {selectedBankInventory.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(
+                  selectedBankInventory.reduce((acc: any, item: any) => {
+                    if (!acc[item.blood_type]) {
+                      acc[item.blood_type] = {
+                        total: 0,
+                        components: [],
+                        lastUpdated: item.last_updated
+                      };
+                    }
+                    acc[item.blood_type].total += item.units_available;
+                    acc[item.blood_type].components.push({
+                      name: item.blood_component,
+                      units: item.units_available
+                    });
+                    // Keep the most recent update time
+                    if (new Date(item.last_updated) > new Date(acc[item.blood_type].lastUpdated)) {
+                      acc[item.blood_type].lastUpdated = item.last_updated;
+                    }
+                    return acc;
+                  }, {})
+                ).map(([type, data]: [string, any]) => (
+                  <Card key={type} className="p-4 border-l-4 border-l-primary hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="text-2xl font-bold text-primary">{type}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Updated: {new Date(data.lastUpdated).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        data.total > 10 ? 'bg-green-100 text-green-700' :
+                        data.total > 0 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {data.total} Units
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        Components
+                      </div>
+                      {data.components.map((comp: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center text-sm border-b border-dashed border-gray-100 last:border-0 pb-1 last:pb-0">
+                          <span className="text-gray-600">{comp.name}</span>
+                          <span className="font-medium">{comp.units}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No stock information available for this blood bank.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>

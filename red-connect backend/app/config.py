@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@redconnect.com")
     EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "RedConnect")
     
+    # AI Configuration
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+
     # Database URL
     @property
     def DATABASE_URL(self) -> str:

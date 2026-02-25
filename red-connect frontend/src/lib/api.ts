@@ -161,6 +161,15 @@ export const api = {
     return response.json();
   },
 
+  async getBloodBankInventory(bankId: number) {
+    const response = await fetch(`${API_URL}/api/blood-banks/${bankId}/inventory`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to get blood bank inventory");
+    return response.json();
+  },
+
   async getBloodBankStates() {
     const response = await fetch(`${API_URL}/api/blood-banks/states/list`, {
       method: "GET",
