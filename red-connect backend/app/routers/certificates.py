@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, date
 from app.database import get_db
-from app.models import User, Certificate, Donation, Donor, CertificateStatus
+from app.models import User, Certificate, Donation, Donor, CertificateStatus, DonationStatus
 from app.schemas import CertificateCreate, CertificateUpdate, CertificateResponse
 from app.auth import get_current_donor, get_current_user
 from app.certificate_generator import generate_certificate_html
@@ -63,6 +63,19 @@ def create_certificate(
     )
     
     db.add(new_certificate)
+
+    # Update donation status and donor stats if not already completed
+    if donation.status != DonationStatus.COMPLETED:
+        donation.status = DonationStatus.COMPLETED
+        
+        donor = db.query(Donor).filter(Donor.id == donation.donor_id).first()
+        if donor:
+            donor.total_donations = (donor.total_donations or 0) + 1
+            donor.last_donation_date = date.today()
+            db.add(donor)
+        
+        db.add(donation)
+
     db.commit()
     db.refresh(new_certificate)
     

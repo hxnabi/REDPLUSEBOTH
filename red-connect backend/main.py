@@ -1,20 +1,29 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
+import os
 from app.database import engine
 from app.models import Base
-from app.routers import auth, donors, organizers, blood_banks, donations, events, certificates, admin, blogs, chatbot, blood_requests
+from app.routers import auth, donors, organizers, blood_banks, donations, events, certificates, admin, blogs, chatbot, blood_requests, rewards
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Create uploads directory if it doesn't exist
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+
 app = FastAPI(
     title="Red Connect API",
     description="Blood Donation Management System API",
     version="1.0.0"
 )
+
+# Mount uploads directory
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Configure CORS FIRST - Must be before any routes
 app.add_middleware(
@@ -77,6 +86,7 @@ app.include_router(blogs.router, prefix="/api", tags=["Blogs"])
 app.include_router(admin.router, prefix="/api", tags=["Admin"])
 app.include_router(chatbot.router, prefix="/api", tags=["Chatbot"])
 app.include_router(blood_requests.router, prefix="/api/blood-requests", tags=["Blood Requests"])
+app.include_router(rewards.router, prefix="/api/rewards", tags=["Rewards"])
 
 @app.get("/")
 def read_root():

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
 from app.database import get_db
-from app.models import User, Donation, Donor
+from app.models import User, Donation, Donor, DonationStatus
 from app.schemas import DonationCreate, DonationUpdate, DonationResponse
 from app.auth import get_current_donor, get_current_user
 
@@ -28,15 +28,23 @@ def create_donation(
         donor_id=donor.id,
         **donation.model_dump()
     )
+
+    # Set status to COMPLETED for self-reported donations (not linked to an event)
+    if not new_donation.event_id:
+        new_donation.status = DonationStatus.COMPLETED
+    else:
+        # Event donations start as SCHEDULED
+        new_donation.status = DonationStatus.SCHEDULED
     
     db.add(new_donation)
     db.commit()
     db.refresh(new_donation)
     
-    # Update donor statistics
-    donor.total_donations += 1
-    donor.last_donation_date = donation.donation_date
-    db.commit()
+    # Update donor statistics only if completed
+    if new_donation.status == DonationStatus.COMPLETED:
+        donor.total_donations += 1
+        donor.last_donation_date = donation.donation_date
+        db.commit()
     
     return new_donation
 
@@ -139,9 +147,13 @@ def delete_donation(
     
     db.delete(donation)
     
-    # Update donor statistics
-    donor.total_donations = max(0, donor.total_donations - 1)
-    db.commit()
+    # Update donor statistics only if it was a completed donation
+    if donation.status == DonationStatus.COMPLETED:
+        donor.total_donations = max(0, donor.total_donations - 1)
+        db.commit()
+    else:
+        # Just commit the deletion
+        db.commit()
     
     return None
 

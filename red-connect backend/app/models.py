@@ -104,6 +104,7 @@ class Donor(Base):
     user = relationship("User", back_populates="donor_profile")
     donations = relationship("Donation", back_populates="donor")
     certificates = relationship("Certificate", back_populates="donor_profile")
+    rewards = relationship("DonorReward", back_populates="donor")
 
 # Organizer Model
 class Organizer(Base):
@@ -315,3 +316,30 @@ class BlogPost(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     author = relationship("User", back_populates="blog_posts")
+
+# Reward Model
+class Reward(Base):
+    __tablename__ = "rewards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    icon = Column(String(50))  # e.g., "Gift", "Heart", "Award" (lucide-react icon names)
+    required_donations = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    donor_rewards = relationship("DonorReward", back_populates="reward")
+
+# Donor Reward Model
+class DonorReward(Base):
+    __tablename__ = "donor_rewards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    donor_id = Column(Integer, ForeignKey("donors.id"), nullable=False)
+    reward_id = Column(Integer, ForeignKey("rewards.id"), nullable=False)
+    earned_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    donor = relationship("Donor", back_populates="rewards")
+    reward = relationship("Reward", back_populates="donor_rewards")

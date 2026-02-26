@@ -338,6 +338,28 @@ export const api = {
     if (!response.ok) throw new Error("Failed to register for event");
     return response.json();
   },
+
+  // Rewards endpoints
+  async getMyRewards() {
+    const response = await fetch(`${API_URL}/api/rewards/my-rewards`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: "Failed to get rewards" }));
+        throw new Error(error.detail || "Failed to get rewards");
+    }
+    return response.json();
+  },
+
+  async getAllRewards() {
+    const response = await fetch(`${API_URL}/api/rewards/`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to get all rewards");
+    return response.json();
+  },
 };
 
 export const logout = () => {

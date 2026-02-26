@@ -1,5 +1,5 @@
 # Routers package initialization
-from . import auth, donors, organizers, blood_banks, donations, events, certificates, blogs, chatbot, blood_requests
+from . import auth, donors, organizers, blood_banks, donations, events, certificates, blogs, chatbot, blood_requests, rewards
 
 __all__ = [
   'auth',
@@ -12,4 +12,5 @@ __all__ = [
   'blogs',
   'chatbot',
   'blood_requests',
+  'rewards',
 ]

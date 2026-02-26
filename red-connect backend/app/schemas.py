@@ -386,3 +386,30 @@ class BloodRequestResponse(BloodRequestBase):
 
     class Config:
         from_attributes = True
+
+# Reward Schemas
+class RewardBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    required_donations: int
+
+class RewardCreate(RewardBase):
+    pass
+
+class RewardResponse(RewardBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class DonorRewardResponse(BaseModel):
+    id: int
+    donor_id: int
+    reward_id: int
+    earned_at: datetime
+    reward: RewardResponse
+
+    class Config:
+        from_attributes = True

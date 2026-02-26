@@ -101,3 +101,12 @@ def get_current_organizer(current_user: User = Depends(get_current_user)) -> Use
         )
     return current_user
 
+def verify_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Verify that the current user is an admin"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user
+

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
-from app.models import BloodBank, BloodInventory
+from app.models import BloodBank, BloodInventory, User
+from app.auth import verify_admin
 from app.schemas import (
     BloodBankCreate,
     BloodBankUpdate,
@@ -18,9 +19,10 @@ router = APIRouter()
 @router.post("/", response_model=BloodBankResponse, status_code=status.HTTP_201_CREATED)
 def create_blood_bank(
     blood_bank: BloodBankCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin)
 ):
-    """Create a new blood bank."""
+    """Create a new blood bank (Admin only)."""
     new_bank = BloodBank(**blood_bank.model_dump())
     db.add(new_bank)
     db.commit()
@@ -73,9 +75,10 @@ def get_blood_bank_inventory(bank_id: int, db: Session = Depends(get_db)):
 def update_blood_bank(
     bank_id: int,
     bank_update: BloodBankUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin)
 ):
-    """Update a blood bank."""
+    """Update a blood bank (Admin only)."""
     bank = db.query(BloodBank).filter(BloodBank.id == bank_id).first()
     if not bank:
         raise HTTPException(
@@ -92,8 +95,12 @@ def update_blood_bank(
     return bank
 
 @router.delete("/{bank_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_blood_bank(bank_id: int, db: Session = Depends(get_db)):
-    """Delete a blood bank."""
+def delete_blood_bank(
+    bank_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin)
+):
+    """Delete a blood bank (Admin only)."""
     bank = db.query(BloodBank).filter(BloodBank.id == bank_id).first()
     if not bank:
         raise HTTPException(

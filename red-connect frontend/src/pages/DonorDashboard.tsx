@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Settings, Award, Gift, LogOut, User, Heart, Calendar, MapPin, CheckCircle2, XCircle, AlertCircle, TrendingUp, Activity } from "lucide-react";
+import { Settings, Award, Gift, LogOut, User, Heart, Calendar, MapPin, CheckCircle2, XCircle, AlertCircle, TrendingUp, Activity, Medal, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 import CertificatesTab from "@/components/CertificatesTab";
 
 const DonorDashboard = () => {
@@ -18,6 +19,8 @@ const DonorDashboard = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [eligibility, setEligibility] = useState<any>(null);
+  const [rewards, setRewards] = useState<any[]>([]);
+  const [myRewards, setMyRewards] = useState<any[]>([]);
 
   const [profile, setProfile] = useState({
     full_name: "",
@@ -99,7 +102,22 @@ const DonorDashboard = () => {
       }
     };
 
+    // Fetch rewards
+    const fetchRewards = async () => {
+      try {
+        const [allRewards, userRewards] = await Promise.all([
+          api.getAllRewards(),
+          api.getMyRewards()
+        ]);
+        setRewards(allRewards);
+        setMyRewards(userRewards);
+      } catch (error) {
+        console.error("Failed to fetch rewards:", error);
+      }
+    };
+
     fetchDonorProfile();
+    fetchRewards();
   }, [navigate, toast]);
 
   const fetchEligibility = async () => {
@@ -758,30 +776,61 @@ const DonorDashboard = () => {
             <div className="bg-card rounded-2xl shadow-soft p-8">
               <h2 className="text-2xl font-display font-bold mb-6">Your Rewards</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-br from-primary/10 to-accent rounded-xl p-6">
-                  <Gift className="w-12 h-12 text-primary mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">First Donation</h3>
-                  <p className="text-muted-foreground text-sm">Complete your first blood donation to unlock this reward</p>
-                  <div className="mt-4 bg-muted rounded-full h-2">
-                    <div className="bg-primary h-2 rounded-full" style={{ width: "0%" }} />
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-primary/10 to-accent rounded-xl p-6">
-                  <Heart className="w-12 h-12 text-primary mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">Life Saver</h3>
-                  <p className="text-muted-foreground text-sm">Donate blood 5 times to earn this badge</p>
-                  <div className="mt-4 bg-muted rounded-full h-2">
-                    <div className="bg-primary h-2 rounded-full" style={{ width: "0%" }} />
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-primary/10 to-accent rounded-xl p-6">
-                  <Award className="w-12 h-12 text-primary mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">Champion Donor</h3>
-                  <p className="text-muted-foreground text-sm">Donate blood 10 times to become a champion</p>
-                  <div className="mt-4 bg-muted rounded-full h-2">
-                    <div className="bg-primary h-2 rounded-full" style={{ width: "0%" }} />
-                  </div>
-                </div>
+                {rewards.map((reward) => {
+                  const isEarned = myRewards.some((mr) => mr.reward_id === reward.id);
+                  const progress = Math.min(
+                    ((profile.total_donations || 0) / reward.required_donations) * 100,
+                    100
+                  );
+                  
+                  const getIcon = (iconName: string) => {
+                    switch (iconName) {
+                      case "Gift": return <Gift className={`w-12 h-12 mb-4 ${isEarned ? "text-primary" : "text-gray-400"}`} />;
+                      case "Heart": return <Heart className={`w-12 h-12 mb-4 ${isEarned ? "text-primary" : "text-gray-400"}`} />;
+                      case "Award": return <Award className={`w-12 h-12 mb-4 ${isEarned ? "text-primary" : "text-gray-400"}`} />;
+                      case "Medal": return <Medal className={`w-12 h-12 mb-4 ${isEarned ? "text-primary" : "text-gray-400"}`} />;
+                      case "Crown": return <Crown className={`w-12 h-12 mb-4 ${isEarned ? "text-primary" : "text-gray-400"}`} />;
+                      default: return <Gift className={`w-12 h-12 mb-4 ${isEarned ? "text-primary" : "text-gray-400"}`} />;
+                    }
+                  };
+
+                  return (
+                    <div 
+                      key={reward.id} 
+                      className={`rounded-xl p-6 border ${
+                        isEarned 
+                          ? "bg-gradient-to-br from-primary/10 to-accent border-primary/20" 
+                          : "bg-gray-50 border-gray-200 opacity-80"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        {getIcon(reward.icon || "Gift")}
+                        {isEarned && (
+                          <Badge className="bg-green-500 hover:bg-green-600">Unlocked</Badge>
+                        )}
+                      </div>
+                      <h3 className={`font-semibold text-lg mb-2 ${isEarned ? "text-foreground" : "text-gray-500"}`}>
+                        {reward.name}
+                      </h3>
+                      <p className="text-muted-foreground text-sm mb-4">{reward.description}</p>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{Math.min(profile.total_donations || 0, reward.required_donations)} / {reward.required_donations} donations</span>
+                          <span>{Math.round(progress)}%</span>
+                        </div>
+                        <div className="bg-muted rounded-full h-2 overflow-hidden">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-1000 ${
+                              isEarned ? "bg-primary" : "bg-gray-400"
+                            }`} 
+                            style={{ width: `${progress}%` }} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

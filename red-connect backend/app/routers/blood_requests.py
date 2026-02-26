@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, List
+import shutil
+import os
+import uuid
 from app.database import get_db
 from app.utils.email import send_blood_request_confirmation
 from app.models import (
@@ -37,7 +40,25 @@ async def create_blood_request(
   medical_proof: Optional[UploadFile] = File(None),
   db: Session = Depends(get_db),
 ) -> BloodRequestResponse:
-  medical_proof_url = medical_proof.filename if medical_proof else None
+  medical_proof_url = None
+  if medical_proof:
+    # Ensure uploads directory exists
+    if not os.path.exists("uploads"):
+      os.makedirs("uploads")
+      
+    # Generate unique filename
+    file_extension = os.path.splitext(medical_proof.filename)[1]
+    if not file_extension:
+        file_extension = ".jpg" # Default if no extension
+        
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = f"uploads/{unique_filename}"
+    
+    # Save file
+    with open(file_path, "wb") as buffer:
+      shutil.copyfileobj(medical_proof.file, buffer)
+      
+    medical_proof_url = f"/uploads/{unique_filename}"
 
   payload = BloodRequestCreate(
     patient_name=patient_name,

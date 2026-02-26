@@ -6,7 +6,7 @@ from typing import List, Optional
 import re
 from ..database import get_db
 from ..models import User, Donor, Organizer, Event, Donation, BloodBank, Certificate, BlogPost, BlogCategory
-from ..auth import get_current_user
+from ..auth import get_current_user, verify_admin
 from ..schemas import DonorResponse, OrganizerResponse, EventResponse
 from pydantic import BaseModel
 
@@ -124,14 +124,7 @@ class AdminBlogResponse(BaseModel):
         from_attributes = True
 
 
-def verify_admin(current_user: User = Depends(get_current_user)):
-    """Verify that the current user is an admin"""
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-    return current_user
+
 
 
 def generate_unique_slug(db: Session, base: str) -> str:
@@ -270,6 +263,38 @@ def create_blog(
     db.commit()
     db.refresh(blog)
     return blog
+
+
+@router.get("/blogs", response_model=List[AdminBlogResponse])
+def get_admin_blogs(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin)
+):
+    """Get all blogs for admin dashboard"""
+    blogs = db.query(BlogPost).order_by(BlogPost.created_at.desc()).offset(skip).limit(limit).all()
+    return blogs
+
+
+@router.delete("/blogs/{blog_id}")
+def delete_blog(
+    blog_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_admin)
+):
+    """Delete a blog post"""
+    blog = db.query(BlogPost).filter(BlogPost.id == blog_id).first()
+    if not blog:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Blog not found"
+        )
+    
+    db.delete(blog)
+    db.commit()
+    
+    return {"message": "Blog deleted successfully"}
 
 
 @router.get("/recent-activity", response_model=List[RecentActivity])
